@@ -34,7 +34,7 @@ struct Card {
 impl Card {
 }
 
-fn card_id(input_string: &String) -> u32 {
+fn card_id(input_string: &String) -> usize {
     let re = Regex::new(r"Card\s+(\d+):").unwrap();
     let Some(capture) = re.captures(&input_string) else {
         println!("No card id could be captured!!");
@@ -82,15 +82,14 @@ fn points_for_card(input_string: String) -> i32 {
     }
 }
 
-fn parse_cards(file_lines: &Vec<String>) -> (HashMap<u32, Card>, Vec<u32>) {
-    let mut hmap: HashMap<u32, Card> = HashMap::new();
-    let mut cards: Vec<u32> = Vec::new();
+fn parse_cards(file_lines: &Vec<String>) -> Vec<Card> {
+    //let mut hmap: HashMap<u32, Card> = HashMap::new();
+    let mut cards: Vec<Card> = Vec::with_capacity(file_lines.iter().count());
     let _ = file_lines.iter().map(|line| {
-        let cid = card_id(line);
-        cards.push(cid);
-        hmap.insert(cid, Card { _card_str: line.to_string(), num_matches: matches_for_card(line), num_copies: 1})
+        let cid: usize = card_id(line);
+        cards.push(Card { _card_str: line.to_string(), num_matches: matches_for_card(line), num_copies: 1});
     }).count(); // consume with count just to run the map
-    (hmap, cards)
+    cards
 }
 
 fn eval_card(cid: u32, card_map: &mut HashMap<u32, Card>) {
@@ -113,23 +112,20 @@ fn eval_card(cid: u32, card_map: &mut HashMap<u32, Card>) {
     }
 }
 
-fn count_total_cards(dat: (HashMap<u32, Card>, Vec<u32>)) -> u32 {
-    let mut card_map = dat.0;
-    let mut card_index = dat.1;
-    card_index.sort();
-
+fn count_total_cards(dat: &mut Vec<Card>) -> u32 {
     // algorithm:
-    // - go over the card index in increasing numerical order. Eval() all cards.
-    // - eval() recursively evaluates all card copies immediately
-    for cid in card_index.iter() {
-        eval_card(*cid, &mut card_map);
+    // - go over the card index in increasing numerical order. For all cards,
+    // add their number of matches to subsequent cards.
+    let mut result = 0;
+    for i in 0..dat.len() {
+        result += dat[i].num_copies;
+        for inc in 1..=dat[i].num_matches {
+            // add to all future cards "num-copies" of this card, saving us evaluating
+            // the current card multiple times.
+            dat[i+inc as usize].num_copies += dat[i].num_copies;
+        }
     }
-
-    // once done, sum up all card counts.
-    let result = card_map.values().map(|card| {
-        return card.num_copies;
-    }).sum();
-    return result;
+    result
 }
 
 fn main() {
@@ -140,6 +136,6 @@ fn main() {
     // }).sum();
     // println!("Cards are worth = {}", card_sum);
     // part 2 - count number of cards
-    let num_cards = count_total_cards(parse_cards(&file_lines));
+    let num_cards = count_total_cards(&mut parse_cards(&file_lines));
     println!("Total cards = {}", num_cards);
 }
