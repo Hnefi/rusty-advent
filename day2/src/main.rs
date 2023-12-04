@@ -24,7 +24,6 @@ fn get_file_lines(file_name: String) -> Vec<String> {
 }
 
 // A struct representing a draw, having a given number for all balls.
-#[derive(Clone)]
 struct Draw {
     red: i32,
     green: i32,
@@ -73,7 +72,7 @@ fn parse_game(input_string: String) -> Game {
     let sub_draw_re = Regex::new(r"(\d+)\s([[:alpha:]]+)").unwrap();
 
     let mut draw_vec: Vec<Draw> = Vec::new();    
-    for split in v.iter() {
+    v.iter().for_each(|split| {
         //println!("Raw split={}", split);
         let mut num_blue = 0;
         let mut num_green = 0;
@@ -93,7 +92,7 @@ fn parse_game(input_string: String) -> Game {
         }
         //println!("adding new draw: r{}, g{}, b{}", num_red, num_green, num_blue);
         draw_vec.push(Draw{red: num_red, green: num_green, blue: num_blue});
-    }
+    });
 
     // Iterate over all the draws in the line and create draws for them.
     return Game {id: game_id, draws: draw_vec}
