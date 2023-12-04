@@ -49,6 +49,7 @@ fn matches_for_card(input_string: &String) -> u32 {
     assert_eq!(card_split.len(), 2, "Expected a card could be split into two, actually split into {}.", card_split.len());
 
     let mut winning_numbers: HashSet<i32> = HashSet::new();
+    let mut held_numbers: HashSet<i32> = HashSet::new();
     let regex_spaced_digits = Regex::new(r"(\d+)\s").unwrap();
     regex_spaced_digits.captures_iter(card_split.first().unwrap()).map(|c | c.extract()).for_each(|(_matching_pattern, [n])| {
         //println!("Matched full pattern={}, digit={}",_matching_pattern, n);
@@ -56,16 +57,12 @@ fn matches_for_card(input_string: &String) -> u32 {
     });
 
     let regex_second_part = Regex::new(r"\s+(\d+)").unwrap();
-    let num_matches: u32 = regex_second_part.captures_iter(card_split.last().unwrap()).map(|c| c.extract()).map(
+    regex_second_part.captures_iter(card_split.last().unwrap()).map(|c| c.extract()).map(
         |(_, [n])| {
-            let held_number: i32 = n.parse().unwrap();
-            match winning_numbers.contains(&held_number) {
-                true => 1,
-                false => 0
-            }
+            held_numbers.insert(n.parse().unwrap());
         }
-    ).sum();
-    num_matches
+    ).count();
+    winning_numbers.intersection(&held_numbers).count().try_into().unwrap()
 }
 
 // Parse a line of text and return the number of points this card is worth.
@@ -92,39 +89,19 @@ fn parse_cards(file_lines: &Vec<String>) -> Vec<Card> {
     cards
 }
 
-fn eval_card(cid: u32, card_map: &mut HashMap<u32, Card>) {
-    //println!("Evaluating card {}", cid);
-    let cur_card: &Card = card_map.get(&cid).unwrap();
-    // base case
-    if cur_card.num_matches == 0 {
-        return
-    }
-
-    // generate vector of cards to increment copy count and then evaluate
-    for inc in 1..=cur_card.num_matches {
-        //println!("Incrementing card {}", cid+inc);
-        let c: &mut Card = card_map.get_mut(&(cid + inc)).unwrap();
-        //println!("card map before {}", c.num_copies);
-        c.num_copies += 1;
-        //let d: &mut Card = card_map.get_mut(&(cid + inc)).unwrap();
-        //println!("card map after {}", d.num_copies);
-        eval_card(cid+inc, card_map);
-    }
-}
-
 fn count_total_cards(dat: &mut Vec<Card>) -> u32 {
     // algorithm:
     // - go over the card index in increasing numerical order. For all cards,
     // add their number of matches to subsequent cards.
     let mut result = 0;
-    for i in 0..dat.len() {
+    (0..dat.len()).for_each(|i| {
         result += dat[i].num_copies;
         for inc in 1..=dat[i].num_matches {
             // add to all future cards "num-copies" of this card, saving us evaluating
             // the current card multiple times.
             dat[i+inc as usize].num_copies += dat[i].num_copies;
         }
-    }
+    });
     result
 }
 
