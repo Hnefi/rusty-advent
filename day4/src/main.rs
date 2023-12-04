@@ -35,7 +35,7 @@ impl Card {
 }
 
 fn card_id(input_string: &String) -> u32 {
-    let re = Regex::new(r"Card (\d+):").unwrap();
+    let re = Regex::new(r"Card\s+(\d+):").unwrap();
     let Some(capture) = re.captures(&input_string) else {
         println!("No card id could be captured!!");
         quit::with_code(1);
@@ -88,13 +88,13 @@ fn parse_cards(file_lines: &Vec<String>) -> (HashMap<u32, Card>, Vec<u32>) {
     let _ = file_lines.iter().map(|line| {
         let cid = card_id(line);
         cards.push(cid);
-        hmap.insert(cid, Card { card_str: line.to_string(), num_matches: matches_for_card(line), num_copies: 1})
+        hmap.insert(cid, Card { _card_str: line.to_string(), num_matches: matches_for_card(line), num_copies: 1})
     }).count(); // consume with count just to run the map
     (hmap, cards)
 }
 
 fn eval_card(cid: u32, card_map: &mut HashMap<u32, Card>) {
-    println!("Evaluating card {}", cid);
+    //println!("Evaluating card {}", cid);
     let cur_card: &Card = card_map.get(&cid).unwrap();
     // base case
     if cur_card.num_matches == 0 {
@@ -103,7 +103,7 @@ fn eval_card(cid: u32, card_map: &mut HashMap<u32, Card>) {
 
     // generate vector of cards to increment copy count and then evaluate
     for inc in 1..=cur_card.num_matches {
-        println!("Incrementing card {}", cid+inc);
+        //println!("Incrementing card {}", cid+inc);
         let c: &mut Card = card_map.get_mut(&(cid + inc)).unwrap();
         //println!("card map before {}", c.num_copies);
         c.num_copies += 1;
