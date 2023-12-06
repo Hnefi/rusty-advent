@@ -22,16 +22,15 @@ fn read_input(fname: String) -> Vec<(u64, u64)> {
 
     // split into lines, and then get two vectors representing distance + time
     let lines: Vec<&str> = input_str.split('\n').collect();
-    let time_vec: Vec<u64> = lines.first().unwrap().split([':', ' '])
-                                  .filter_map(|num_candidate| {
-                                    num_candidate.parse().ok()
-                                  })
-                                  .collect();
-    let dist_vec: Vec<u64> = lines.last().unwrap().split([':', ' '])
-                                  .filter_map(|num_candidate| {
-                                    num_candidate.parse().ok()
-                                  })
-                                  .collect();
+    let parse_line_to_ivec = |s: &str| -> Vec<u64> {
+        s.split([':', ' '])
+        .filter_map(|num_candidate| {
+            num_candidate.parse().ok()
+        })
+        .collect()
+    };
+    let time_vec: Vec<u64> = parse_line_to_ivec(lines.first().unwrap());
+    let dist_vec: Vec<u64> = parse_line_to_ivec(lines.last().unwrap());
     assert_eq!(time_vec.len(), dist_vec.len());
     // UNCOMMENT FOR PART 1
     // time_vec.iter().enumerate().map(|e| {
@@ -45,7 +44,6 @@ fn read_input(fname: String) -> Vec<(u64, u64)> {
     time_vec.iter().for_each(|s| final_time.push_str(&s.to_string()));
     dist_vec.iter().for_each(|s| final_dist.push_str(&s.to_string()));
     vec![(final_time.parse().unwrap(), final_dist.parse().unwrap())]
-
 }
 
 // calculate the product of all possible ways to beat the record in all races.
