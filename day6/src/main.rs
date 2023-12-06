@@ -61,13 +61,13 @@ fn calc_wins(races: &Vec<(u64, u64)>) -> u64 {
         let eqn_offset: f64 = d_lim as f64;
         let roots = find_roots_quadratic::<f64>(-1.0, t_lim as f64, -1.0 as f64 * eqn_offset);
 
-        fn beats_record(t_lim: u64, d_lim: u64, choice: u64) -> bool {
+        let beats_record = |choice: u64| {
             if ((t_lim - choice) * choice) > d_lim {
                 return true
             } else {
                 return false
             }
-        }
+        };
 
         match roots {
             Roots::No([]) => {
@@ -76,14 +76,14 @@ fn calc_wins(races: &Vec<(u64, u64)>) -> u64 {
             },
             Roots::One([r1]) => {
                 //println!("This race can only be won with one choice: {}", r1.ceil());
-                if beats_record(t_lim as u64, d_lim as u64, r1.ceil() as u64) {
+                if beats_record(r1.ceil() as u64) {
                     return Some(1);
                 }
                 None
             },
             Roots::Two([r1, r2]) => {
-                let lower_bound = if beats_record(t_lim as u64, d_lim as u64, r1.ceil() as u64) {r1.ceil() as u64} else {r1.ceil() as u64 + 1};
-                let upper_bound = if beats_record(t_lim as u64, d_lim as u64, r2.floor() as u64) {r2.floor() as u64} else {r2.floor() as u64 - 1};
+                let lower_bound = if beats_record(r1.ceil() as u64) {r1.ceil() as u64} else {r1.ceil() as u64 + 1};
+                let upper_bound = if beats_record(r2.floor() as u64) {r2.floor() as u64} else {r2.floor() as u64 - 1};
                 //println!("This race can be won with any choice between {} and {}!", lower_bound, upper_bound);
                 Some(upper_bound - lower_bound + 1)
             },
