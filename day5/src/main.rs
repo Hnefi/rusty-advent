@@ -23,6 +23,7 @@ fn print_result(v: &Vec<Range<i64>>)  {
 // Return a vector containing the overlap of two ranges, transformed by the offset, plus the remainder
 // range, if any.
 fn overlap_and_exclusive(input: &Range<i64>, source: &Range<i64>, offset: i64) -> Vec<Range<i64>> {
+    println!("Checking input range {:?} against source transform {:?}",input, source);
     let mut result = Vec::new();
     if source.contains(&input.start) && source.contains(&input.end) {
         println!("Input range {:?} completely contained in source {:?}", input, source);
@@ -32,29 +33,15 @@ fn overlap_and_exclusive(input: &Range<i64>, source: &Range<i64>, offset: i64) -
         let overlap_start = max(source.start, input.start);
         let overlap_end = min(source.end, input.end);
         result.push(Range {
-            start: overlap_start,
-            end: overlap_end
+            start: overlap_start+offset,
+            end: overlap_end+offset
         });
         print_result(&result);
-        if overlap_start > source.start {
-            println!("There is a remainder range from {} to {}", source.start, overlap_start-1);
-            // there is a remainder range from source.start to overlap_start-1
-            result.push(Range { start: source.start, end: overlap_start-1});
-            print_result(&result);
-        } else if overlap_end < source.end {
-            println!("There is a remainder range from {} to {}", overlap_end+1, source.end);
-            result.push(Range { start: overlap_end+1, end: source.end});
-            print_result(&result);
-        }
-    } else if input.start > source.start {
-        // potential overlap looks like this:
-        // ....Is--Ie...
-        // ......Ss....Ee
-        // ....Ss--Ie...
-        // ......Ss....Ee
-        
-    } else {
-
+    } else if source.contains(&input.start) && !source.contains(&input.end) {
+        println!("Input range {:?} partially overlaps source {:?} on the upper side", input, source);
+        // .... S1 -------------- Sn ....
+        // ........ I1............In ....
+        // .........O1............On .....
     }
     result
 }
@@ -85,7 +72,8 @@ fn convert_seeds(input: &Vec<&str>) -> i64 {
         .collect();
 
     let mut seed_ranges: Vec<Range<i64>> = Vec::new();
-    (0..seed_seeds.len() - 2).for_each(|idx| {
+    // FIXME
+    (0..=seed_seeds.len()-2).for_each(|idx| {
         seed_ranges.push(Range{start: seed_seeds[2 * idx], end: seed_seeds[2*idx] + seed_seeds[2 * idx + 1]});
     });
     println!("Seed ranges: {:?}", seed_ranges);
