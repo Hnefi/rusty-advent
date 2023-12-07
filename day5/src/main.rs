@@ -1,4 +1,5 @@
-use std::{collections::HashMap, env, ops::Range};
+use std::collections::btree_map::Range;
+use std::{collections::HashMap, env, ops::RangeInclusive};
 use std::cmp::{max,min};
 
 // Read argument for file input string.
@@ -12,38 +13,51 @@ fn get_file_name() -> String {
     args[arg_len - 1].clone()
 }
 
-fn range_size(r: &Range<i64>) -> i64 {
-    r.end - r.start + 1
-}
-
-fn print_result(v: &Vec<Range<i64>>)  {
+fn print_result(v: &Vec<RangeInclusive<i64>>)  {
     println!("Added new output range, output now is {:?}", v);
 }
 
-// Return a vector containing the overlap of two ranges, transformed by the offset, plus the remainder
-// range, if any.
-fn overlap_and_exclusive(input: &Range<i64>, source: &Range<i64>, offset: i64) -> Vec<Range<i64>> {
+// Return a tuple containing:
+// - whether this range was transformed
+// - a transformed range (optional)
+// - a remainder range (optional)
+fn overlap_and_exclusive(input: &RangeInclusive<i64>, source: &RangeInclusive<i64>, offset: i64)
+    -> (Option<RangeInclusive<i64>>, Option<RangeInclusive<i64>>) {
     println!("Checking input range {:?} against source transform {:?}",input, source);
-    let mut result = Vec::new();
-    if source.contains(&input.start) && source.contains(&input.end) {
+    if source.contains(input.start()) && source.contains(input.end()) {
         println!("Input range {:?} completely contained in source {:?}", input, source);
         // .... S1 -------------- Sn ....
         // ........ I1............In ....
         // .........O1............On .....
-        let overlap_start = max(source.start, input.start);
-        let overlap_end = min(source.end, input.end);
-        result.push(Range {
-            start: overlap_start+offset,
-            end: overlap_end+offset
-        });
-        print_result(&result);
-    } else if source.contains(&input.start) && !source.contains(&input.end) {
+        let overlap_start = max(source.start(), input.start());
+        let overlap_end = min(source.end(), input.end());
+        // result.push(RangeInclusive::new(
+        //     overlap_start+offset,
+        //     overlap_end+offset
+        // ));
+        return (Some(RangeInclusive::new(
+            overlap_start+offset,
+            overlap_end+offset)), None);
+    } else if source.contains(input.start()) && !source.contains(input.end()) {
         println!("Input range {:?} partially overlaps source {:?} on the upper side", input, source);
         // .... S1 -------------- Sn ....
-        // ........ I1............In ....
-        // .........O1............On .....
+        // ................ I1................In ....
+        // Output: .........O1....On On+1.....In ....
+        let transformed_range = RangeInclusive::new(input.start()+offset, source.end()+offset);
+        let rem_range = RangeInclusive::new(source.end()+1, *input.end());
+        return (Some(transformed_range), Some(rem_range));
+    } else if !source.contains(input.start()) && source.contains(input.end()) {
+        println!("Input range {:?} partially overlaps source {:?} on the lower side", input, source);
+        // ................. S1 -------------- Sn ....
+        // ........ I1................In ....
+        // Output: .I1..S1-1.S1 ......In ............
+        let rem_range = RangeInclusive::new(*input.start(), source.start()-1);
+        let transformed_range = RangeInclusive::new(source.start()+offset, input.end()+offset);
+        return (Some(transformed_range), Some(rem_range));
+    } else {
+        println!("No overlap between the two ranges");
+        return (None, None)
     }
-    result
 }
 
 fn convert_seeds(input: &Vec<&str>) -> i64 {
@@ -71,10 +85,11 @@ fn convert_seeds(input: &Vec<&str>) -> i64 {
         .map(|c| c.parse().unwrap())
         .collect();
 
-    let mut seed_ranges: Vec<Range<i64>> = Vec::new();
-    // FIXME
-    (0..=seed_seeds.len()-2).for_each(|idx| {
-        seed_ranges.push(Range{start: seed_seeds[2 * idx], end: seed_seeds[2*idx] + seed_seeds[2 * idx + 1]});
+    let mut seed_ranges: Vec<RangeInclusive<i64>> = Vec::new();
+    (0..seed_seeds.len()-2).for_each(|idx| {
+        seed_ranges.push(RangeInclusive::new(
+            // -1 for using an inclusive range. 0 10 -> [0..9]
+            seed_seeds[2 * idx], seed_seeds[2*idx] + seed_seeds[2 * idx + 1]-1));
     });
     println!("Seed ranges: {:?}", seed_ranges);
 
@@ -83,14 +98,14 @@ fn convert_seeds(input: &Vec<&str>) -> i64 {
     // - for each "mapping" of seeds in the problem input set, create two other sets of ranges
     //   like this: {[begin, end], offset}
     //   e.g., {[98, 99], -48}, {[50, 97], 2}
-    let mut seed_map: HashMap<Range<i64>, i64> = HashMap::new();
+    let mut seed_map: HashMap<RangeInclusive<i64>, i64> = HashMap::new();
     for idx in 2..input.len() {
         //println!("Map: {:?}", input[idx])
         let mappings: Vec<&str> = input[idx].split('\n').map(|s| s.trim()).collect();
         println!("Mappings: {:?}", mappings);
         mappings.iter().for_each(|m| {
             let range = m
-                .split(" ")
+                .split_whitespace()
                 .collect::<Vec<&str>>()
                 .iter()
                 .filter_map(|s| s.parse().ok())
@@ -102,16 +117,13 @@ fn convert_seeds(input: &Vec<&str>) -> i64 {
                     _ => unreachable!(),
                 };
                 // Build the source range.
-                let source_range = Range {
-                    start: src,
-                    end: src + len,
-                };
-
+                // -1 for using an inclusive range.
+                let source_range = RangeInclusive::new(src, src+len-1);
                 // seed map contains an "offset"
                 let offset: i64 = dst - src;
                 println!(
                     "Inserting source range w/ start {}, end {}, with an offset of {}",
-                    source_range.start, source_range.end, offset,
+                    source_range.start(), source_range.end(), offset,
                 );
                 seed_map.insert(source_range, offset);
             }
@@ -121,16 +133,36 @@ fn convert_seeds(input: &Vec<&str>) -> i64 {
         // - given input [90, 99], and an input of {[98, 99], -48}, {[50, 97], 2}
         //   we would want the output as [92, 99], [50, 51]
         println!("Seed ranges before: {:?}", seed_ranges);
-        let new_ranges: Vec<Range<i64>> = seed_ranges.iter().flat_map(|input_range| {
-            // return the range overlap between the src and the current range, and then
-            // translate it to the destination
-            let mut output_ranges: Vec<Range<i64>> = Vec::new();
-            for (src, offset) in seed_map.iter() {
-                output_ranges.extend(overlap_and_exclusive(input_range, src, *offset));
-            }
-            output_ranges.into_iter()
-        }).collect();
-        println!("Seed ranges after: {:?}", new_ranges);
+
+        let mut transformed_ranges: Vec<RangeInclusive<i64>> = Vec::new();
+        while seed_ranges.len() > 0 {
+            let mut remainder_ranges: Vec<RangeInclusive<i64>> = Vec::new();
+            let transformed_ranges: Vec<RangeInclusive<i64>> = seed_ranges.into_iter().flat_map(|input_range| {
+                // return the range overlap between the src and the current range, and then
+                // translate it to the destination
+                let mut output_ranges: Vec<RangeInclusive<i64>> = Vec::new();
+                for (src, offset) in seed_map.iter() {
+                    let (transformed_range, remainder_range) = overlap_and_exclusive(&input_range, src, *offset);
+                    if transformed_range.is_none() && remainder_range.is_none() {
+                        output_ranges.push(input_range.clone())
+                    }
+                    if transformed_range.is_some() {
+                        output_ranges.push(transformed_range.unwrap());
+                    }
+                    if remainder_range.is_some() {
+                        output_ranges.push(remainder_range.unwrap());
+                    }
+                }
+                output_ranges.into_iter()
+            }).collect();
+            println!("Seed ranges after: {:?}", transformed_ranges);
+            // seed_ranges has no more entries, because the into_iter consumed all of them
+            assert_eq!(seed_ranges.len(), 0);
+            seed_ranges.append(&mut remainder_ranges);
+        }
+        // This step is done, replace all old ranges with new transformed ones
+        seed_ranges.append(&mut transformed_ranges);
+        seed_map.clear();
 
         // Now iterate over the seeds with the current map and transform them all
         // seeds.iter_mut().for_each(|s_id| {
