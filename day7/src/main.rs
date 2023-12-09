@@ -1,9 +1,9 @@
 // Goal: Rank all the hands from 1 to N, 1 being the worst, and N the best.
 // Find all the "5 of a kinds", then "4 of a kinds", "full houses", "3 of a kinds", "2 pair", "1 pair", "high card"
-// - Assign them ordinal numbers by putting them into a heap and popping them out sequentially
+// - Assign them ordinal numbers by sorting them based on the problem statement and popping them out sequentially
 // - only thing to implement is a custom ">" operator to compare 2 hands.
 
-use std::{collections::{HashMap, BinaryHeap}, env};
+use std::{collections::HashMap, env, cmp::Ordering};
 
 fn get_file_name() -> String {
     let args: Vec<String> = env::args().collect();
@@ -15,7 +15,7 @@ fn get_file_name() -> String {
     args[arg_len - 1].clone()
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum HandType {
     High,
     Pair,
@@ -26,10 +26,38 @@ enum HandType {
     FiveKind,
 }
 
+// partial eq and eq can be done just with the native builtins, because
+// they do compare every element of the vector
+#[derive(PartialEq, Eq, Debug)]
 struct CamelCardHand {
-    cards: Vec<u8>,
-    bid: i32,
     hand_type: HandType,
+    cards: Vec<u8>,
+    bid: i32
+}
+
+impl PartialOrd for CamelCardHand {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let type_order = self.hand_type.partial_cmp(&other.hand_type);
+        if type_order == None {
+            return None;
+        }
+        if type_order.unwrap() == Ordering::Equal {
+            return self.cards.partial_cmp(&other.cards);
+        } else {
+            return type_order;
+        }
+    }
+}
+
+impl Ord for CamelCardHand {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let type_order = self.hand_type.cmp(&other.hand_type);
+        if type_order == Ordering::Equal {
+            return self.cards.cmp(&other.cards);
+        } else {
+            return type_order;
+        }
+    }
 }
 
 fn get_hand_type(hand: &str) -> HandType {
@@ -81,19 +109,19 @@ fn build_hand(raw_string: &str) -> CamelCardHand {
     // there has to be a better way to optimize this instead of creating a
     // new hashmap every time
     let to_ordinal = HashMap::from([
-        ('2', 0),
-        ('3', 1),
-        ('4', 2),
-        ('5', 3),
-        ('6', 4),
-        ('7', 8),
-        ('8', 9),
-        ('9', 10),
-        ('T', 11),
-        ('J', 12),
-        ('Q', 13),
-        ('K', 14),
-        ('A', 15),
+        ('J', 1), // part 2 - J is the weakest individual card
+        ('2', 2),
+        ('3', 3),
+        ('4', 4),
+        ('5', 5),
+        ('6', 6),
+        ('7', 7),
+        ('8', 8),
+        ('9', 9),
+        ('T', 10),
+        ('Q', 12),
+        ('K', 13),
+        ('A', 14),
     ]);
     let cards_and_bid: Vec<&str> = raw_string.split_whitespace().collect();
     CamelCardHand {
@@ -111,15 +139,17 @@ fn build_hand(raw_string: &str) -> CamelCardHand {
 
 fn main() {
     let fname = get_file_name();
-    let hands: Vec<CamelCardHand> = std::fs::read_to_string(fname)
+    let mut hands: Vec<CamelCardHand> = std::fs::read_to_string(fname)
         .unwrap()
         .split('\n')
         .map(|s| build_hand(s))
         .collect();
+    hands.sort();
 
-
-
-    // make the heap from all the hands, and then push hands off it one-by-one
-    // let heap = BinaryHeap::<CamelCardHand>::new();
-    // hands.into_iter().for_each(|h| heap.push(h));
+    let pts: i32 = hands
+        .iter()
+        .enumerate()
+        .map(|h| (h.0+1) as i32 * h.1.bid)
+        .sum();
+    println!("Final points: {:}", pts);
 }
