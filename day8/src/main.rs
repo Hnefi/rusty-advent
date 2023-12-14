@@ -5,7 +5,6 @@ use regex::Regex;
 #[derive(Default)]
 struct Network {
     directions: Vec<char>,
-    start: String,
     nodes: HashMap<String, (String, String)>,
 }
 
@@ -50,9 +49,6 @@ impl NetworkBuilder {
             .chars()
             .collect();
 
-        // Save the starting node specially.
-        net.start = lines[2].split_whitespace().collect::<Vec<&str>>()[0].to_string();
-
         // All lines contain nodes and their adjacencies, so match each one against
         // this pattern, for e.g.,
         //  AAA = (BBB, CCC)
@@ -64,6 +60,7 @@ impl NetworkBuilder {
         lines.iter()
             .for_each(|line| {
                 for (_, [node, l_str, r_str]) in re.captures_iter(line).map(|c| c.extract()) {
+                    // We know all the keys are unique (tested and implied in the problem statement)
                     map.insert(node.to_string(), (l_str.to_string(), r_str.to_string()));
                 }
             });
@@ -88,7 +85,7 @@ fn main() {
     let network: Network = Network::builder(fname).build();
 
     //let mut next_nodes: Vec<&String> = Vec::new();
-    let mut cur_node = network.start.clone();
+    let mut cur_node = "AAA".to_string();
     let mut found = false;
     let mut steps = 1;
     while found == false {
