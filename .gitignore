@@ -1,4 +1,8 @@
 target/
 *.code-workspace
-*/inputs/full
-*/input/full
+2023/*/inputs/full
+2023/*/input/full
+*DS_Store
+*test_input
+*full_input
+*.vscode/

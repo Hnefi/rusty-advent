@@ -1,0 +1,9 @@
+# [PROJECT_DIR]/day1/Cargo.toml
+[package]
+name = "day1" # the name of the package
+version = "0.1.0"    # the current version, obeying semver
+authors = ["Mark <mark.j.suth@pm.me>"]
+edition = "2021"
+
+[dependencies]
+quit = "2.0.0"

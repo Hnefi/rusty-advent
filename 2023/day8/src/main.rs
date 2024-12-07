@@ -58,7 +58,6 @@ impl NetworkBuilder {
         //  (Node) = (Next-Node-L, Next-Node-R)
         //  (\W+) = (\W+, \W+)
         let mut map: HashMap<String, (String, String)> = HashMap::new();
-        //let re = Regex::new(r"([[:alpha]]+) = \(([[:alpha:]]), ([[:alpha:]])\)").unwrap();
         let re = Regex::new(r"([[[:alpha:]]\d]+)\s=\s\x28([[[:alpha:]]\d]+),\s([[[:alpha:]]\d]+)\x29").unwrap();
         lines.iter()
             .for_each(|line| {
@@ -124,46 +123,40 @@ fn main() {
         next_node
     }
 
+    fn check_termination(nodes: &Vec<String>) -> bool {
+        nodes.iter().all(|node| node.ends_with('Z'))
+    }
+
     // Part 2 - Start from all nodes ending in A, and go to all those ending in Z.
     // Algorithm:
     // - create two sets: one with the input nodes, one with the output
     // - map each input node to an output
     // - check for termination
     // - swap the two set references, so the output becomes the input of the next step
-    let mut found = false;
-    let mut steps = 0;
+    let mut steps: u64 = 0;
     let mut direction_idx: usize = 0;
     // could optimize this to not clone the start list and strings all the time
-    let mut input_nodes = network.start_list.clone();
+    let mut starting_nodes: Vec<String> = network.start_list.clone();
     let mut output_nodes: Vec<String> = Vec::new();
-    let mut ptr_1 = &mut input_nodes;
-    let mut ptr_2 = &mut output_nodes;
-    while found == false {
-        //println!("Step {} starting with nodes {:?}...", steps, ptr_1);
+    let mut ptr_1: &mut Vec<String> = &mut starting_nodes;
+    let mut ptr_2: &mut Vec<String> = &mut output_nodes;
+    loop {
+        if check_termination(ptr_1) {
+            println!("Escaped in {} steps!", steps);
+            break;
+        }
         ptr_1.into_iter().for_each(|node| {
             ptr_2.push(get_next_node(direction_idx, &node, &network));
         });
-        //println!("Transformed into nodes {:?}...", ptr_2);
+        steps += 1;
 
-        // check termination
-        found = ptr_2.iter().all(|node| {
-            if node.ends_with('Z') {
-                //println!("Found that at least 1 node ends with Z! Step {}. Nodes = {:?}", steps, ptr_2);
-                return true;
-            } else {
-                return false;
-            }
-        });
-        ptr_1.clear();
-        // swap references and reset direction_idx for the next iteration
-        let tmp = ptr_1;
-        ptr_1 = ptr_2;
-        ptr_2 = tmp;
+        // swap the contents of the two references and reset direction_idx for 
+        // the next iteration
+        std::mem::swap(&mut ptr_1, &mut ptr_2);
+        ptr_2.clear();
         direction_idx += 1;
         if direction_idx >= network.directions.len() {
             direction_idx = 0;
         }
-        steps += 1;
     }
-    println!("Escaped in {} steps!", steps);
 }
