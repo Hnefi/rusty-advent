@@ -1,4 +1,4 @@
 # Virtual workspace file
 [workspace]
-members = ["day1"]
+members = ["day1", "day2"]
 resolver = "2"

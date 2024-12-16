@@ -1,0 +1,8 @@
+# [PROJECT_DIR]/day2/Cargo.toml
+[package]
+name = "day2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quit = "2.0.0"
