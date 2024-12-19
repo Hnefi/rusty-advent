@@ -22,20 +22,18 @@ fn level_pair_is_safe(level_1: u32, level_2: u32) -> (i32, bool) {
     // return tuple:
     //  - element one: 1 if level_2 is > level_1, 0 if the two are equal, and -1 if level 2 < level_1
     //  - element 2: true if the difference is within the defined range [1,3]
-    let diff= level_1.abs_diff(level_2);
+    let diff = level_1.abs_diff(level_2);
     let diff_safe = match diff {
         1 | 2 | 3 => true,
         _ => false,
     };
     if level_2 > level_1 {
         return (1, diff_safe);
-    }
-    else if level_2 == level_1 {
+    } else if level_2 == level_1 {
         return (0, diff_safe);
-    }
-    else {
+    } else {
         return (-1, diff_safe);
-    } 
+    }
 }
 
 fn is_report_safe(levels: &Vec<u32>) -> bool {
@@ -45,14 +43,13 @@ fn is_report_safe(levels: &Vec<u32>) -> bool {
     //let mut level_values_safe  = Vec::<bool>::new();
     let mut last_comparison: i32 = starting_value;
 
-
     for slice in levels.windows(2) {
         //println!("\tLooking at slice {:?}", slice);
-        let (comparison, safe )= level_pair_is_safe(slice[0], slice[1]);
+        let (comparison, safe) = level_pair_is_safe(slice[0], slice[1]);
         //println!("\tcomparison = {}, safe={}", comparison, safe);
         //level_values_safe.push(safe);
         if last_comparison != starting_value && comparison != last_comparison {
-                return false;
+            return false;
         }
         if !safe {
             return false;
@@ -63,8 +60,9 @@ fn is_report_safe(levels: &Vec<u32>) -> bool {
     true
 }
 
-fn get_levels_from_report(s: &String) -> Vec<u32> {
-    let levels: Vec<u32> = s.split_whitespace()
+fn get_level_vec_from_report(s: &String) -> Vec<u32> {
+    let levels: Vec<u32> = s
+        .split_whitespace()
         .map(|num| num.parse::<u32>().unwrap())
         .collect();
     levels
@@ -72,7 +70,7 @@ fn get_levels_from_report(s: &String) -> Vec<u32> {
 
 fn generate_dampened_reports(original_report: &String) -> Vec<Vec<u32>> {
     let mut dampened_reports = Vec::<Vec<u32>>::new();
-    let levels = get_levels_from_report(original_report);
+    let levels = get_level_vec_from_report(original_report);
 
     //println!("Generating dampened reports from original report: {:?}", levels);
     for i in 0..levels.len() {
@@ -86,18 +84,23 @@ fn generate_dampened_reports(original_report: &String) -> Vec<Vec<u32>> {
 
 fn main() {
     let fname = get_file_name();
-    println!("Hello AOC 2024 Day 2!! Calculating list safety from file {}...", fname);
+    println!(
+        "Hello AOC 2024 Day 2!! Calculating list safety from file {}...",
+        fname
+    );
 
     let reports = get_lists_from_file(fname);
 
     println!("Counting reports...");
-    let safe_reports = reports.iter()
+    let safe_reports = reports
+        .iter()
         .filter(|report| {
-            let levels = get_levels_from_report(report);
+            let levels = get_level_vec_from_report(report);
             let base_safe = is_report_safe(&levels);
             if !base_safe {
                 let dampened_reports: Vec<Vec<u32>> = generate_dampened_reports(report);
-                return dampened_reports.iter()
+                return dampened_reports
+                    .iter()
                     .any(|dampened_report| is_report_safe(dampened_report));
             }
             true
