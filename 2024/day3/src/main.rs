@@ -13,14 +13,12 @@ fn get_file_name() -> String {
 
 fn match_mul_operands(input: String) -> Vec<(u32, u32)> {
     let re = Regex::new(r"mul\(([0-9]{1,3}),([0-9]{1,3})\)").unwrap();
-    let operands: Vec<(u32, u32)> = re
-        .captures_iter(&input)
+    re.captures_iter(&input)
         .map(|captures| {
             let (_, [op1, op2]) = captures.extract();
             (op1.parse::<u32>().unwrap(), op2.parse::<u32>().unwrap())
         })
-        .collect();
-    operands
+        .collect()
 }
 
 fn main() {
@@ -32,7 +30,6 @@ fn main() {
     );
 
     let input = std::fs::read_to_string(src_file).unwrap();
-
     println!("Parsing operands....");
     let parsed_operands = match_mul_operands(input);
     // println!(

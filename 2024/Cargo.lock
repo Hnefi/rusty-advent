@@ -12,9 +12,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "commons"
+version = "0.1.0"
+dependencies = [
+ "quit",
+]
+
+[[package]]
 name = "day1"
 version = "0.1.0"
 dependencies = [
+ "commons",
  "quit",
 ]
 

@@ -99,9 +99,7 @@ fn main() {
             let base_safe = is_report_safe(&levels);
             if !base_safe {
                 let dampened_reports: Vec<Vec<u32>> = generate_dampened_reports(report);
-                return dampened_reports
-                    .iter()
-                    .any(|dampened_report| is_report_safe(dampened_report));
+                return dampened_reports.iter().any(is_report_safe);
             }
             true
         })
