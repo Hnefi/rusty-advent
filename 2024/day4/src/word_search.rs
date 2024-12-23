@@ -1,6 +1,6 @@
 //pub mod word_search {
 use commons::io_utilities::read_file_lines;
-use std::{cmp::Ordering, collections::HashSet};
+use std::{cmp::Ordering, collections::HashSet, iter::zip};
 
 #[derive(Hash, PartialEq, Eq, Debug, Copy, Clone)]
 pub struct IndexSequence(pub i32, pub i32, pub i32, pub i32);
@@ -8,14 +8,6 @@ pub struct IndexSequence(pub i32, pub i32, pub i32, pub i32);
 impl IndexSequence {
     pub fn as_array(&self) -> [i32; 4] {
         [self.0, self.1, self.2, self.3]
-    }
-
-    pub fn is_forward_match(self) -> bool {
-        return (self.0 < self.1);
-    }
-
-    pub fn is_reverse_match(self) -> bool {
-        return (self.0 > self.1);
     }
 }
 
@@ -84,7 +76,7 @@ fn sequence_in_array_bounds(seq: &IndexSequence, board: &WordSearchBoard) -> boo
     if seq
         .as_array()
         .into_iter()
-        .any(|val| val < 0 || val > board.board.len().try_into().unwrap())
+        .any(|val| val < 0 || val >= board.board.len().try_into().unwrap())
     {
         return false;
     }
@@ -175,6 +167,13 @@ pub fn generate_potential_matches(
             //println!("Added {:?}", seq);
             add_new_sequence_if_untested(seq, board, &mut matches);
         }
+        let start = base_index + (board.board_line_length * off) - off;
+        let seq: IndexSequence = generate_sequence(start, board.board_line_length - 1);
+        //println!("Generated seq {:?}", seq);
+        if diagonal_sequence_in_bounds(&seq, board) {
+            //println!("Added {:?}", seq);
+            add_new_sequence_if_untested(seq, board, &mut matches);
+        }
     });
 
     positive_offsets.into_iter().for_each(|off| {
@@ -204,11 +203,37 @@ pub fn generate_potential_matches(
             //println!("Added {:?}", seq);
             add_new_sequence_if_untested(seq, board, &mut matches);
         }
+        let start = base_index + (board.board_line_length * off) - off;
+        let seq: IndexSequence = generate_sequence(start, -board.board_line_length + 1);
+        //println!("Generated seq {:?}", seq);
+        if diagonal_sequence_in_bounds(&seq, board) {
+            //println!("Added {:?}", seq);
+            add_new_sequence_if_untested(seq, board, &mut matches);
+        }
     });
     matches
 }
 
-pub fn evaluate_words(potential_matches: HashSet<IndexSequence>, mut board: &WordSearchBoard) {}
+pub fn evaluate_seq_for_match(seq: &IndexSequence, board: &WordSearchBoard) -> bool {
+    let v: Vec<char> = WORD_TO_MATCH.chars().collect();
+    let z = zip(seq.as_array(), v);
+    z.into_iter().all(|(seq_index, expected_char)| {
+        if board.board[seq_index as usize] == expected_char {
+            return true;
+        }
+        false
+    })
+}
+
+pub fn evaluate_words(potential_matches: HashSet<IndexSequence>, board: &mut WordSearchBoard) {
+    potential_matches.iter().for_each(|seq| {
+        if evaluate_seq_for_match(seq, board) {
+            // found an XMAS
+            board.matched_sequences.insert(*seq);
+        }
+        board.tested_sequences.insert(*seq);
+    });
+}
 
 #[cfg(test)]
 mod tests {
@@ -347,6 +372,49 @@ mod tests {
                 IndexSequence(12, 8, 4, 0),
                 IndexSequence(15, 10, 5, 0),
             ])
+        );
+        let potential_matches = generate_potential_matches(12, &board);
+        assert_eq!(
+            potential_matches,
+            HashSet::from([
+                IndexSequence(12, 8, 4, 0),
+                IndexSequence(12, 13, 14, 15),
+                IndexSequence(0, 4, 8, 12),
+                IndexSequence(15, 14, 13, 12),
+                IndexSequence(12, 9, 6, 3),
+                IndexSequence(3, 6, 9, 12),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_evaluate_seq_for_match() {
+        let board = build_board_from_file(&"mini_input".to_string());
+        assert!(evaluate_seq_for_match(&IndexSequence(0, 1, 2, 3), &board));
+        assert!(evaluate_seq_for_match(&IndexSequence(12, 9, 6, 3), &board));
+        assert!(!evaluate_seq_for_match(&IndexSequence(0, 4, 8, 12), &board));
+    }
+
+    #[test]
+    fn test_evaluate_words() {
+        let mut board = build_board_from_file(&"mini_input".to_string());
+        let potential_matches = HashSet::from([
+            IndexSequence(0, 1, 2, 3),
+            IndexSequence(12, 9, 6, 3),
+            IndexSequence(0, 4, 8, 12),
+        ]);
+        evaluate_words(potential_matches, &mut board);
+        assert_eq!(
+            board.matched_sequences,
+            HashSet::from([IndexSequence(0, 1, 2, 3), IndexSequence(12, 9, 6, 3),]),
+        );
+        assert_eq!(
+            board.tested_sequences,
+            HashSet::from([
+                IndexSequence(0, 1, 2, 3),
+                IndexSequence(12, 9, 6, 3),
+                IndexSequence(0, 4, 8, 12)
+            ]),
         );
     }
 }
