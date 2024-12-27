@@ -8,17 +8,17 @@ fn main() {
 
     let mut word_search = word_search::build_board_from_file(&fname);
     // for every starting index in the board, evaluate all potential matches passing through
-    // this point
+    // this point (for both parts)
     for idx in 0..word_search.board.len() {
         let pot_matches =
-            word_search::generate_potential_matches(idx.try_into().unwrap(), &word_search);
+            word_search::generate_potential_matches_part_one(idx.try_into().unwrap(), &word_search);
         word_search::evaluate_words(pot_matches, &mut word_search);
     }
 
     // The number of matches is the size of the set "matched_sequences"
     println!(
         "The number of matches is: {}",
-        word_search.matched_sequences.len()
+        word_search.matched_sequences_part_one.len()
     );
     // println!(
     //     "Exact matches is: {:?}, and evaluated sequences: {:?}",
