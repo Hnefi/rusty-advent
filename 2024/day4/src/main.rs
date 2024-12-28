@@ -13,12 +13,23 @@ fn main() {
         let pot_matches =
             word_search::generate_potential_matches_part_one(idx.try_into().unwrap(), &word_search);
         word_search::evaluate_words(pot_matches, &mut word_search);
+
+        if word_search.board[idx] == 'A' {
+            word_search::evaluate_words_part_two(
+                word_search::generate_potential_matches_part_two(
+                    idx.try_into().unwrap(),
+                    &word_search,
+                ),
+                &mut word_search,
+            );
+        }
     }
 
     // The number of matches is the size of the set "matched_sequences"
     println!(
-        "The number of matches is: {}",
-        word_search.matched_sequences_part_one.len()
+        "The number of matches is: {}... And for part two: {}",
+        word_search.matched_sequences_part_one.len(),
+        word_search.matched_sequences_part_two.len(),
     );
     // println!(
     //     "Exact matches is: {:?}, and evaluated sequences: {:?}",

@@ -17,15 +17,54 @@ pub trait InBounds {
     fn is_diagonal_in_bounds(&self, board: &WordSearchBoard) -> bool;
 }
 
-impl IndexSequencePartOne {
-    pub fn as_array(&self) -> [i32; 4] {
-        [self.0, self.1, self.2, self.3]
+pub trait MatchBoard {
+    fn evaluate_seq_for_match(&self, board: &WordSearchBoard) -> bool;
+}
+
+pub trait AsVec {
+    fn as_vec(&self) -> Vec<i32>;
+}
+
+impl AsVec for IndexSequencePartOne {
+    fn as_vec(&self) -> Vec<i32> {
+        vec![self.0, self.1, self.2, self.3]
     }
 }
 
-impl IndexSequencePartTwo {
-    pub fn as_array(&self) -> [i32; 3] {
-        [self.0, self.1, self.2]
+impl AsVec for IndexSequencePartTwo {
+    fn as_vec(&self) -> Vec<i32> {
+        vec![self.0, self.1, self.2]
+    }
+}
+
+impl MatchBoard for IndexSequencePartOne {
+    fn evaluate_seq_for_match(&self, board: &WordSearchBoard) -> bool {
+        let v: Vec<char> = WORD_TO_MATCH.chars().collect();
+        let z = zip(self.as_vec(), v);
+        z.into_iter().all(|(seq_index, expected_char)| {
+            if board.board[seq_index as usize] == expected_char {
+                return true;
+            }
+            false
+        })
+    }
+}
+
+impl MatchBoard for XmasSequencePair {
+    fn evaluate_seq_for_match(&self, board: &WordSearchBoard) -> bool {
+        let v: Vec<char> = WORD_TO_MATCH[1..].chars().collect();
+        [self.0, self.1]
+            .iter()
+            .map(|seq| {
+                let z = zip(seq.as_vec(), v.clone());
+                z.into_iter().all(|(seq_index, expected_char)| {
+                    if board.board[seq_index as usize] == expected_char {
+                        return true;
+                    }
+                    false
+                })
+            })
+            .all(|result| result)
     }
 }
 
@@ -34,7 +73,7 @@ impl InBounds for XmasSequencePair {
         let seqs_out_of_bounds: Vec<bool> = [self.0, self.1]
             .iter()
             .map(|seq: &IndexSequencePartTwo| {
-                seq.as_array()
+                seq.as_vec()
                     .into_iter()
                     .any(|val| val < 0 || val >= board.board.len().try_into().unwrap())
             })
@@ -50,7 +89,7 @@ impl InBounds for XmasSequencePair {
                     // Algorithm: calculate the "row number" for all the elements in the seq. If they
                     // are all identical, the horizontal sequence doesn't wrap and it's valid.
                     let rows: Vec<i32> = seq
-                        .as_array()
+                        .as_vec()
                         .into_iter()
                         .map(|elem| elem / board.board_line_length)
                         .collect();
@@ -75,7 +114,7 @@ impl InBounds for XmasSequencePair {
                     // Algorithm: Calculate the "column number" for all the elements in the seq.
                     // If the sequence is sorted, there is no wrapping around the horizontal boundary
                     let cols: Vec<i32> = seq
-                        .as_array()
+                        .as_vec()
                         .into_iter()
                         .map(|elem| elem % board.board_line_length)
                         .collect();
@@ -102,7 +141,7 @@ impl InBounds for XmasSequencePair {
 impl InBounds for IndexSequencePartOne {
     fn is_vertical_in_bounds(&self, board: &WordSearchBoard) -> bool {
         if self
-            .as_array()
+            .as_vec()
             .into_iter()
             .any(|val| val < 0 || val >= board.board.len().try_into().unwrap())
         {
@@ -116,7 +155,7 @@ impl InBounds for IndexSequencePartOne {
             // Algorithm: calculate the "row number" for all the elements in the seq. If they
             // are all identical, the horizontal sequence doesn't wrap and it's valid.
             let rows: Vec<i32> = self
-                .as_array()
+                .as_vec()
                 .into_iter()
                 .map(|elem| elem / board.board_line_length)
                 .collect();
@@ -134,7 +173,7 @@ impl InBounds for IndexSequencePartOne {
             // Algorithm: Calculate the "column number" for all the elements in the seq.
             // If the sequence is sorted, there is no wrapping around the horizontal boundary
             let cols: Vec<i32> = self
-                .as_array()
+                .as_vec()
                 .into_iter()
                 .map(|elem| elem % board.board_line_length)
                 .collect();
@@ -231,7 +270,55 @@ pub fn generate_potential_matches_part_two(
     base_index: i32,
     board: &WordSearchBoard,
 ) -> HashSet<XmasSequencePair> {
-    // TODO
+    let mut matches = HashSet::new();
+    // Diagonal sequences always starting from the middle A
+    // M.S                          M.M    S.M    S.S
+    // .A.    extrapolated others   .A.    .A.    .A.
+    // M.S                          S.S    S.M    M.M
+
+    let line_offset = board.board_line_length;
+
+    // M.M
+    // .A.
+    // S.S
+    let value = XmasSequencePair(
+        generate_part_two_sequence(base_index - line_offset - 1, line_offset + 1),
+        generate_part_two_sequence(base_index - line_offset + 1, line_offset - 1),
+    );
+    if value.is_diagonal_in_bounds(board) && !board.tested_sequences_part_two.contains(&value) {
+        matches.insert(value);
+    }
+    // M.S
+    // .A.
+    // M.S
+    let value = XmasSequencePair(
+        generate_part_two_sequence(base_index - line_offset - 1, line_offset + 1),
+        generate_part_two_sequence(base_index + line_offset - 1, -line_offset + 1),
+    );
+    if value.is_diagonal_in_bounds(board) && !board.tested_sequences_part_two.contains(&value) {
+        matches.insert(value);
+    }
+    // S.S
+    // .A.
+    // M.M
+    let value = XmasSequencePair(
+        generate_part_two_sequence(base_index + line_offset + 1, -line_offset - 1),
+        generate_part_two_sequence(base_index + line_offset - 1, -line_offset + 1),
+    );
+    if value.is_diagonal_in_bounds(board) && !board.tested_sequences_part_two.contains(&value) {
+        matches.insert(value);
+    }
+    // S.M
+    // .A.
+    // S.M
+    let value = XmasSequencePair(
+        generate_part_two_sequence(base_index + line_offset + 1, -line_offset - 1),
+        generate_part_two_sequence(base_index - line_offset + 1, line_offset - 1),
+    );
+    if value.is_diagonal_in_bounds(board) && !board.tested_sequences_part_two.contains(&value) {
+        matches.insert(value);
+    }
+    matches
 }
 
 pub fn generate_potential_matches_part_one(
@@ -327,27 +414,29 @@ pub fn generate_potential_matches_part_one(
     matches
 }
 
-pub fn evaluate_seq_for_match(seq: &IndexSequencePartOne, board: &WordSearchBoard) -> bool {
-    let v: Vec<char> = WORD_TO_MATCH.chars().collect();
-    let z = zip(seq.as_array(), v);
-    z.into_iter().all(|(seq_index, expected_char)| {
-        if board.board[seq_index as usize] == expected_char {
-            return true;
-        }
-        false
-    })
-}
-
 pub fn evaluate_words(
     potential_matches: HashSet<IndexSequencePartOne>,
     board: &mut WordSearchBoard,
 ) {
     potential_matches.iter().for_each(|seq| {
-        if evaluate_seq_for_match(seq, board) {
+        if seq.evaluate_seq_for_match(board) {
             // found an XMAS
             board.matched_sequences_part_one.insert(*seq);
         }
         board.tested_sequences_part_one.insert(*seq);
+    });
+}
+
+pub fn evaluate_words_part_two(
+    potential_matches: HashSet<XmasSequencePair>,
+    board: &mut WordSearchBoard,
+) {
+    potential_matches.iter().for_each(|seq| {
+        if seq.evaluate_seq_for_match(board) {
+            // found an XMAS
+            board.matched_sequences_part_two.insert(*seq);
+        }
+        board.tested_sequences_part_two.insert(*seq);
     });
 }
 
@@ -494,18 +583,9 @@ mod tests {
     #[test]
     fn test_evaluate_seq_for_match() {
         let board = build_board_from_file(&"mini_input".to_string());
-        assert!(evaluate_seq_for_match(
-            &IndexSequencePartOne(0, 1, 2, 3),
-            &board
-        ));
-        assert!(evaluate_seq_for_match(
-            &IndexSequencePartOne(12, 9, 6, 3),
-            &board
-        ));
-        assert!(!evaluate_seq_for_match(
-            &IndexSequencePartOne(0, 4, 8, 12),
-            &board
-        ));
+        assert!(IndexSequencePartOne(0, 1, 2, 3).evaluate_seq_for_match(&board));
+        assert!(IndexSequencePartOne(12, 9, 6, 3).evaluate_seq_for_match(&board));
+        assert!(IndexSequencePartOne(0, 4, 8, 12).evaluate_seq_for_match(&board));
     }
 
     #[test]
@@ -597,5 +677,67 @@ mod tests {
             generate_part_two_sequence(board.board_line_length, 1),
         )
         .is_diagonal_in_bounds(&board));
+    }
+
+    #[test]
+    fn test_generate_potential_matches_part_two() {
+        let test_file = "mini_input".to_string();
+        let board = build_board_from_file(&test_file);
+
+        // Testing from any input on the first row (i.e., index 2), will mean
+        // that no matches should be returned, they are all out of bounds.
+        let potential_matches = generate_potential_matches_part_two(2, &board);
+        assert_eq!(potential_matches, HashSet::from([]));
+
+        // Testing from an input in the second row and first/last columns should also
+        // return zero matches because of bounds.
+        let potential_matches =
+            generate_potential_matches_part_two(board.board_line_length, &board);
+        assert_eq!(potential_matches, HashSet::from([]));
+        let potential_matches =
+            generate_potential_matches_part_two(2 * board.board_line_length - 1, &board);
+        assert_eq!(potential_matches, HashSet::from([]));
+        // Testing from an input in the second row and a central column should
+        // return a valid potential_match
+        let potential_matches =
+            generate_potential_matches_part_two(board.board_line_length + 2, &board);
+        assert_eq!(
+            potential_matches,
+            HashSet::from([
+                // M.S
+                // .A.
+                // M.S
+                XmasSequencePair(
+                    IndexSequencePartTwo(1, 6, 11),
+                    IndexSequencePartTwo(9, 6, 3),
+                ),
+                // M.M
+                // .A.
+                // S.S
+                XmasSequencePair(
+                    IndexSequencePartTwo(1, 6, 11),
+                    IndexSequencePartTwo(3, 6, 9),
+                ),
+                // S.S
+                // .A.
+                // M.M
+                XmasSequencePair(
+                    IndexSequencePartTwo(11, 6, 1),
+                    IndexSequencePartTwo(9, 6, 3),
+                ),
+                // S.M
+                // .A.
+                // S.M
+                XmasSequencePair(
+                    IndexSequencePartTwo(11, 6, 1),
+                    IndexSequencePartTwo(3, 6, 9),
+                ),
+            ])
+        );
+
+        // Testing from an input in the last row shoudl also return nothing.
+        let potential_matches =
+            generate_potential_matches_part_two((board.board.len() - 1) as i32, &board);
+        assert_eq!(potential_matches, HashSet::from([]));
     }
 }
