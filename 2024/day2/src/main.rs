@@ -1,4 +1,4 @@
-use std::{env, str::FromStr};
+use std::{cmp::Ordering, env, str::FromStr};
 fn get_file_name() -> String {
     let args: Vec<String> = env::args().collect();
     let arg_len = args.len();
@@ -15,7 +15,7 @@ fn get_lists_from_file(file_name: String) -> Vec<String> {
         .split("\n")
         .map(|f| String::from_str(f).ok().unwrap())
         .collect();
-    return lines;
+    lines
 }
 
 fn level_pair_is_safe(level_1: u32, level_2: u32) -> (i32, bool) {
@@ -23,16 +23,11 @@ fn level_pair_is_safe(level_1: u32, level_2: u32) -> (i32, bool) {
     //  - element one: 1 if level_2 is > level_1, 0 if the two are equal, and -1 if level 2 < level_1
     //  - element 2: true if the difference is within the defined range [1,3]
     let diff = level_1.abs_diff(level_2);
-    let diff_safe = match diff {
-        1 | 2 | 3 => true,
-        _ => false,
-    };
-    if level_2 > level_1 {
-        return (1, diff_safe);
-    } else if level_2 == level_1 {
-        return (0, diff_safe);
-    } else {
-        return (-1, diff_safe);
+    let diff_safe = matches!(diff, 1..=3);
+    match level_2.cmp(&level_1) {
+        Ordering::Greater => (1, diff_safe),
+        Ordering::Equal => (0, diff_safe),
+        Ordering::Less => (-1, diff_safe),
     }
 }
 
@@ -60,7 +55,7 @@ fn is_report_safe(levels: &Vec<u32>) -> bool {
     true
 }
 
-fn get_level_vec_from_report(s: &String) -> Vec<u32> {
+fn get_level_vec_from_report(s: &str) -> Vec<u32> {
     let levels: Vec<u32> = s
         .split_whitespace()
         .map(|num| num.parse::<u32>().unwrap())
@@ -68,7 +63,7 @@ fn get_level_vec_from_report(s: &String) -> Vec<u32> {
     levels
 }
 
-fn generate_dampened_reports(original_report: &String) -> Vec<Vec<u32>> {
+fn generate_dampened_reports(original_report: &str) -> Vec<Vec<u32>> {
     let mut dampened_reports = Vec::<Vec<u32>>::new();
     let levels = get_level_vec_from_report(original_report);
 
