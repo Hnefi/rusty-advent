@@ -3,6 +3,6 @@ target/
 2023/*/inputs/full
 2023/*/input/full
 *DS_Store
-*test_input
-*full_input
+*test_input*
+*full_input*
 *.vscode/
