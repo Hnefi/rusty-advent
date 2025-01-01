@@ -1,0 +1,43 @@
+### SCRATCHPAD ###
+
+Rule descriptions:
+47|53
+97|13
+97|61
+97|47
+75|29
+61|13
+75|53
+29|13
+97|29
+53|29
+61|53
+97|53
+61|29
+47|13
+75|47
+97|75
+47|61
+75|61
+47|29
+75|13
+53|13
+
+- Describes a specific ordering relation: 47 comes before 53, 97 comes before 13, 97 comes before 61, etc...
+- If a pair in the update _matches_ the ordering relation, then the update is still acceptable.
+- What we really care about is if an ordering relationship is VIOLATED, meaning X|Y but in the actual list, Y|X.
+
+Given an update like this (allowed):
+75,47,61,53,29
+
+- Generate all pairs:
+-> (75, 47), (75, 61), (75, 53), (75, 29)
+-> (47, 61), (47, 53), (47, 29)
+-> (61, 53), (61, 29)
+
+When given an update like this (not allowed):
+75,97,47,61,53
+-> (75,97), (75,47), (75,61), (75,53)
+-> (97,47), (97,61), (97,53)
+-> (47,61), (47,53)
+-> (61,53)
