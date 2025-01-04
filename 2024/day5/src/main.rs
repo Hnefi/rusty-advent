@@ -162,30 +162,35 @@ fn get_update_subset(
     legality: UpdateLegality,
 ) -> Vec<Vec<u32>> {
     let mut filtered_updates = Vec::new();
-    updates.iter().for_each(|pages: &Vec<u32>| {
-        // Algorithm: for each update, build all pairs of numbers that correspond to orderings
-        // e.g., for an update 75,47,61,53,29, generate pairs:
-        // -> (75, 47), (75, 61), (75, 53), (75, 29)
-        // -> (47, 61), (47, 53), (47, 29)
-        // -> (61, 53), (61, 29)
-        // Then determine if all of these update orderings are legal by looking up the INVERSE
-        // ordering in the ruleset. e.g., If the ordering (75,47) comes from the actual update
-        // list, we look up (47,75). If that rule is present, then the current set of page updates
-        // is illegal and we can reject it.
-        // If all inverse orders are not prohibited, then the set of page updates is legal and we
-        // can accept it.
-        let reversed_orders = build_reversed_orderings(pages);
-        let update_breaks_ordering_rules = reversed_orders
-            .iter()
-            .any(|page_order| rules.contains(page_order));
-
-        if !update_breaks_ordering_rules && legality == UpdateLegality::Legal {
-            filtered_updates.push(pages.clone());
-        }
-        if update_breaks_ordering_rules && legality == UpdateLegality::Illegal {
-            filtered_updates.push(pages.clone());
-        }
-    });
+    if legality == UpdateLegality::Legal {
+        updates.iter().for_each(|pages: &Vec<u32>| {
+            // Algorithm: for each update, build all pairs of numbers that correspond to orderings
+            // e.g., for an update 75,47,61,53,29, generate pairs:
+            // -> (75, 47), (75, 61), (75, 53), (75, 29)
+            // -> (47, 61), (47, 53), (47, 29)
+            // -> (61, 53), (61, 29)
+            // Then determine if all of these update orderings are legal by looking up the
+            // ordering in the ruleset.
+            let page_orders = build_all_orderings(pages);
+            if page_orders
+                .iter()
+                .all(|page_order| rules.contains(page_order))
+            {
+                filtered_updates.push(pages.clone());
+            }
+        })
+    } else {
+        assert!(legality == UpdateLegality::Illegal);
+        updates.iter().for_each(|pages: &Vec<u32>| {
+            let reversed_orders = build_reversed_orderings(pages);
+            if reversed_orders
+                .iter()
+                .any(|page_order| rules.contains(page_order))
+            {
+                filtered_updates.push(pages.clone());
+            }
+        })
+    }
     filtered_updates
 }
 
