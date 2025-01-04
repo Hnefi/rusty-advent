@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cmp::Ordering, collections::HashSet};
 
 use commons::io_utilities::read_file_lines;
 
@@ -51,18 +51,86 @@ fn build_reversed_orderings(page_updates: &[u32]) -> Vec<PageOrdering> {
             });
         }
     }
-    // println!(
-    //     "Starting from page_updates: {:?}, built reversed orderings: {:?}",
-    //     page_updates, v
-    // );
     v
 }
 
-/* Given a vec of updates, return a new vec with only the legal ones (i.e., those
-* which obey all of the ordering rules)
+fn swap_page_orderings(update: &mut Vec<u32>, swaps: &[PageOrdering]) {
+    swaps.iter().for_each(|ordering| {
+        // We unwrap these index finds because the slice of swaps has already been built from
+        // the same 'update' vector, and if the elements are not found any longer, this is
+        // a bug.
+        let i1 = update
+            .iter()
+            .position(|item| item.cmp(&ordering.first) == Ordering::Equal)
+            .unwrap();
+        let i2 = update
+            .iter()
+            .position(|item| item.cmp(&ordering.second) == Ordering::Equal)
+            .unwrap();
+        if i1 > i2 {
+            //println!("Performing swap for Page Ordering: {:?}", ordering);
+            // Don't swap indices that are already in sorted order. This can happen
+            // when multiple swaps are generated, and a previous swap has moved the
+            // first element before the second.
+            update.swap(i1, i2);
+            //println!("Update vec after swap {:?}", update);
+        }
+    });
+}
+
+fn fix_illegal_update(update: &mut Vec<u32>, rules: &HashSet<PageOrdering>) {
+    // Algorithm: In an infinite loop, fixup the rules list as follows:
+    // - Generate all ordering pairs that break the provided rules.
+    // - Swap all those two pairs.
+    // - Run until there are no more swaps/orders to be fixed up.
+    loop {
+        //println!("Loop-fixing illegal update vec: {:?}", update);
+        let reversed_orders = build_reversed_orderings(update);
+        let illegal_orders_to_swap: Vec<PageOrdering> = reversed_orders
+            .into_iter()
+            .filter_map(|page_ordering| {
+                if rules.contains(&page_ordering) {
+                    Some(page_ordering)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        // println!(
+        //     "Orders violated in the illegal update: {:?}",
+        //     illegal_orders_to_swap
+        // );
+        if illegal_orders_to_swap.is_empty() {
+            break;
+        } else {
+            swap_page_orderings(update, &illegal_orders_to_swap);
+        }
+    }
+
+    // Assert the vector now obeys all the rules!
+    let reversed_orders = build_reversed_orderings(update);
+    let update_breaks_ordering_rules: bool = reversed_orders
+        .iter()
+        .any(|page_order| rules.contains(page_order));
+    assert!(!update_breaks_ordering_rules);
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum UpdateLegality {
+    Legal,
+    Illegal,
+}
+
+/* Given a vec of updates, return a new vec with only updates matching the provided legality.
+* For legal updates, we return those which obey all of the ordering rules.
+* For illegal updates, we return those which do not.
 */
-fn get_legal_updates(updates: &[Vec<u32>], rules: HashSet<PageOrdering>) -> Vec<Vec<u32>> {
-    let mut legal_updates = Vec::new();
+fn get_update_subset(
+    updates: &[Vec<u32>],
+    rules: &HashSet<PageOrdering>,
+    legality: UpdateLegality,
+) -> Vec<Vec<u32>> {
+    let mut filtered_updates = Vec::new();
     updates.iter().for_each(|pages: &Vec<u32>| {
         // Algorithm: for each update, build all pairs of numbers that correspond to orderings
         // e.g., for an update 75,47,61,53,29, generate pairs:
@@ -76,14 +144,29 @@ fn get_legal_updates(updates: &[Vec<u32>], rules: HashSet<PageOrdering>) -> Vec<
         // If all inverse orders are not prohibited, then the set of page updates is legal and we
         // can accept it.
         let reversed_orders = build_reversed_orderings(pages);
-        if !reversed_orders
+        let update_breaks_ordering_rules: bool = reversed_orders
             .iter()
-            .any(|page_order| rules.contains(page_order))
-        {
-            legal_updates.push(pages.clone());
+            .any(|page_order| rules.contains(page_order));
+
+        //TODO: There has to be a better way to express this control flow, using match or if
+        // let.... Even clippy is complaining about it.
+        if !update_breaks_ordering_rules && legality == UpdateLegality::Legal {
+            filtered_updates.push(pages.clone());
+        } else if update_breaks_ordering_rules && legality == UpdateLegality::Illegal {
+            filtered_updates.push(pages.clone());
         }
     });
-    legal_updates
+    filtered_updates
+}
+
+fn get_middle_page_number_sum(updates: &[Vec<u32>]) -> u32 {
+    updates
+        .iter()
+        .map(|page_updates| {
+            // The middle index is equal to len() / 2 in integer division.
+            page_updates.get(page_updates.len() / 2).unwrap()
+        })
+        .sum()
 }
 
 fn main() {
@@ -98,16 +181,31 @@ fn main() {
     println!(
         "Hello from AOC Day 5! Parsing puzzle input rules: {rules}, and also parsing page outputs: {page_outputs}",
     );
-    let legal_updates =
-        get_legal_updates(&build_page_updates(&page_outputs), build_ruleset(&rules));
+    let rules = build_ruleset(&rules);
+    let legal_updates = get_update_subset(
+        &build_page_updates(&page_outputs),
+        &rules,
+        UpdateLegality::Legal,
+    );
     //println!("Legal updates are: {:?}", legal_updates);
 
-    let middle_value_sum: u32 = legal_updates
-        .iter()
-        .map(|page_updates| {
-            // The middle index is equal to len() / 2 in integer division.
-            page_updates.get(page_updates.len() / 2).unwrap()
-        })
-        .sum();
-    println!("Final sum of middle-page numbers: {}", middle_value_sum);
+    println!(
+        "Part 1: Sum of middle-page numbers: {}",
+        get_middle_page_number_sum(&legal_updates)
+    );
+
+    let mut illegal_update_list = get_update_subset(
+        &build_page_updates(&page_outputs),
+        &rules,
+        UpdateLegality::Illegal,
+    );
+    //println!("Part 2: Illegal updates: {:?}", illegal_update_list);
+    illegal_update_list
+        .iter_mut()
+        .for_each(|update| fix_illegal_update(update, &rules));
+    //println!("Part 2: Fixed updates: {:?}", illegal_update_list);
+    println!(
+        "Part 2: Sum of middle-page numbers: {}",
+        get_middle_page_number_sum(&illegal_update_list)
+    );
 }

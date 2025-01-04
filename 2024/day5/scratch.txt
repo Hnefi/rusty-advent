@@ -41,3 +41,33 @@ When given an update like this (not allowed):
 -> (97,47), (97,61), (97,53)
 -> (47,61), (47,53)
 -> (61,53)
+
+----------- Part 2 --------------
+- What we have to do is re-order all the updates so that all of the rules are respected.
+- Info that we need:
+  - All of the pairs that violate order constraints - e.g., we have a rule X|Y but the actual list contains Y|X.
+    - Maps to an obvious "list of swaps"? i.e., taking the list and swapping "Y|X" for "X|Y"
+    - Will it always converge? i.e., we swapped X|Y but then created another problem Z|X?
+      - Simple example:
+
+        Rules:
+        A|B
+        B|C
+
+        List:
+        C B A
+
+        Pairings: C|B, C|A, B|A
+        Iterative swaps and new lists generated after all swaps are consumed.
+          B C A
+          A C B -> A|C, A|B, C|B
+            ** This is an example of how we swapped B|A and then created a new violation, because "B" jumped over "C" in the process.
+          A B C
+    - Therefore, after every swap iteration, we have to re-parse the list to ensure we didn't create any other rule violations.
+
+
+    
+Test illegal outputs:
+[[26, 11, 53, 72, 61, 92, 17, 77, 37], [96, 43, 78, 17, 63, 81, 54, 64, 72, 53, 35]
+My code says:
+[[92, 37, 26, 17, 61, 72, 77, 53, 11], [35, 17, 78, 72, 96, 64, 53, 63, 54, 81, 43]
