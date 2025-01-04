@@ -71,3 +71,5 @@ Test illegal outputs:
 [[26, 11, 53, 72, 61, 92, 17, 77, 37], [96, 43, 78, 17, 63, 81, 54, 64, 72, 53, 35]
 My code says:
 [[92, 37, 26, 17, 61, 72, 77, 53, 11], [35, 17, 78, 72, 96, 64, 53, 63, 54, 81, 43]
+
+- This seems to be correct, and I have added asserts that prove that every vector is totally ordered.
