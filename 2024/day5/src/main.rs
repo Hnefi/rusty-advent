@@ -67,7 +67,7 @@ fn build_all_orderings(page_updates: &[u32]) -> Vec<PageOrdering> {
     v
 }
 
-fn swap_page_orderings(update: &mut Vec<u32>, swaps: &[PageOrdering]) {
+fn swap_page_orderings(update: &mut [u32], swaps: &[PageOrdering]) {
     swaps.iter().for_each(|ordering| {
         // We unwrap these index finds because the slice of swaps has already been built from
         // the same 'update' vector, and if the elements are not found any longer, this is
@@ -91,7 +91,7 @@ fn swap_page_orderings(update: &mut Vec<u32>, swaps: &[PageOrdering]) {
     });
 }
 
-fn fix_illegal_update(update: &mut Vec<u32>, rules: &HashSet<PageOrdering>) {
+fn fix_illegal_update(update: &mut [u32], rules: &HashSet<PageOrdering>) {
     // Algorithm: In an infinite loop, fixup the rules list as follows:
     // - Generate all ordering pairs that break the provided rules.
     // - Swap all those two pairs.
@@ -119,22 +119,6 @@ fn fix_illegal_update(update: &mut Vec<u32>, rules: &HashSet<PageOrdering>) {
             swap_page_orderings(update, &illegal_orders_to_swap);
         }
     }
-
-    // update.sort_by(|x, y| {
-    //     if rules.contains(&PageOrdering {
-    //         first: *x,
-    //         second: *y,
-    //     }) {
-    //         Ordering::Less
-    //     } else if rules.contains(&PageOrdering {
-    //         first: *y,
-    //         second: *x,
-    //     }) {
-    //         Ordering::Greater
-    //     } else {
-    //         panic!("No total order!");
-    //     }
-    // });
 
     // Assert the vector now obeys all the rules! More specifically, assert that all
     // pages are strictly ordered before all their successors. If any page is not
