@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use commons::{arg_parsing::get_file_name_or_quit, io_utilities::read_file_to_string};
@@ -23,10 +24,14 @@ pub trait GuardCharAccessors {
     fn get_next_index(&self, offset: i64) -> i64;
 }
 
+#[derive(Clone)]
 pub struct Lab {
     map: Vec<char>,
     line_length: usize,
     guard_position: usize,
+    starting_position: usize,
+    starting_direction: char,
+    guard_path: HashSet<(usize, char)>,
 }
 
 impl Debug for Lab {
@@ -38,7 +43,7 @@ impl Debug for Lab {
             map_string.push_str(&format!("{}\n", chunk_as_string.concat()));
         });
         let _ = f.debug_struct("Lab:\n").finish();
-        write!(f, "{}", map_string)
+        write!(f, "{}\nGuard Path Map: {:?}", map_string, self.guard_path)
     }
 }
 
@@ -53,6 +58,23 @@ impl GuardCharAccessors for Lab {
 
     fn get_next_index(&self, offset: i64) -> i64 {
         self.guard_position as i64 + offset
+    }
+}
+
+impl Lab {
+    fn reset_to_starting_state(&mut self) {
+        self.guard_position = self.starting_position;
+        *self.get_guard_char_reference() = self.starting_direction;
+        self.guard_path.clear();
+        self.guard_path
+            .insert((self.starting_position, self.starting_direction));
+
+        // Reset all visited positions to their original state.
+        self.map.iter_mut().for_each(|pos| {
+            if *pos == VISITED_POS {
+                *pos = '.';
+            }
+        });
     }
 }
 
@@ -71,10 +93,14 @@ fn map_and_line_length_from_file(fname: &String) -> (Vec<char>, usize) {
 fn build_lab_from_file(fname: &String) -> Lab {
     let (map, line_length) = map_and_line_length_from_file(fname);
     let current_pos = find_starting_guard_pos(&map);
+    let starting_direction = map[current_pos];
     Lab {
         map,
         line_length,
         guard_position: current_pos,
+        starting_position: current_pos,
+        starting_direction,
+        guard_path: HashSet::new(),
     }
 }
 
@@ -171,14 +197,26 @@ fn rotate_guard(lab: &mut Lab) {
     lab.map[lab.guard_position] = GUARD_CHARS[next_idx];
 }
 
-fn calculate_guard_path(lab: &mut Lab) {
+fn calculate_guard_path(lab: &mut Lab) -> bool {
     loop {
         // Calculate the guard's path based on its current location and direction, and take the
         // correct action (e.g., advance, turn, exit).
+        // At each step, append a node for old_position onto the list that corresponds to the
+        // guard's path.
         match next_guard_action(lab) {
             NextGuardAction::Advance => {
                 let old_position = advance_guard(lab);
                 mark_position_visited(lab, old_position);
+                // Check for loop here. If detected, return true
+                let dir = lab.get_guard_character();
+                if lab.guard_path.contains(&(lab.guard_position, dir)) {
+                    println!(
+                        "Guard already visited position {} with direction {}",
+                        lab.guard_position, dir
+                    );
+                    break true;
+                }
+                lab.guard_path.insert((old_position, dir));
             }
             NextGuardAction::Turn => {
                 rotate_guard(lab);
@@ -186,24 +224,84 @@ fn calculate_guard_path(lab: &mut Lab) {
             NextGuardAction::ExitLab => {
                 // mark the guard's current position as visited (because they're on the edge, they
                 // will go out of the lab) and then exit the loop
+                lab.guard_path
+                    .insert((lab.guard_position, lab.get_guard_character()));
                 mark_position_visited(lab, lab.guard_position);
-                break;
+                break false;
             }
         }
-        //println!("--- Iteration done ---\n{:?}", lab);
     }
 }
+
+fn count_all_possible_guard_loops(lab: &Lab) -> usize {
+    // For each position the guard takes, place an obstacle in front of it and then calculate if
+    // the guard will loop forever without exiting the board. If it does, then we've found a loop.
+    let mut loops = 0;
+    for (pos, _) in lab.guard_path.iter() {
+        if *pos != lab.starting_position {
+            let mut lab_copy = lab.clone();
+            lab_copy.reset_to_starting_state();
+            lab_copy.map[*pos] = '#';
+            println!(
+                "Testing barrier at position {}, reset lab to {:?}",
+                pos, lab_copy
+            );
+
+            // Calculate path with the existing function.
+            if calculate_guard_path(&mut lab_copy) {
+                loops += 1;
+            }
+        }
+    }
+    loops
+}
+
+// DOES THIS CODE DO ANYTHING USEFUL?? NO IDEA.
+// fn calculate_guard_loops_copilot_auto(lab: &Lab) {
+//     // Calculate the number of loops the guard makes by finding the first node that is repeated in
+//     // the guard's path list.
+//     let mut guard_list_iter = lab.guard_list.iter();
+//     let mut guard_list_iter_peek = guard_list_iter.clone();
+//     let mut guard_list_iter_peek_peek = guard_list_iter_peek.clone();
+//     loop {
+//         let current_node = guard_list_iter.next().unwrap();
+//         let peeked_node = guard_list_iter_peek.next().unwrap();
+//         let peeked_peeked_node = guard_list_iter_peek_peek.next().unwrap();
+//         if peeked_node == peeked_peeked_node {
+//             // We've found a loop, so we can now calculate the length of the loop by counting the
+//             // number of nodes between the current node and the peeked node.
+//             let mut loop_length = 1;
+//             loop {
+//                 let next_node = guard_list_iter.next().unwrap();
+//                 loop_length += 1;
+//                 if next_node == peeked_node {
+//                     break;
+//                 }
+//             }
+//             println!("Found a loop of length {}", loop_length);
+//             break;
+//         }
+//     }
+// }
 
 fn main() {
     let fname = get_file_name_or_quit();
     println!("AOC Day6 - Parsing input {fname}...");
     let mut lab = build_lab_from_file(&fname);
     //println!("Lab: {:?}", lab);
-    println!("Parsed {:?}. Calculating guard positions....", lab);
+    println!(
+        "Parsed {:?}. Calculating guard positions and building path graph....",
+        lab
+    );
     calculate_guard_path(&mut lab);
     println!(
         "Done! Guard visited {} different positions!",
         lab.map.iter().filter(|&pos| *pos == VISITED_POS).count()
+    );
+    println!("Calculating guard loops...");
+    println!(
+        "There are {} possibilities for barriers that will make the guard loop",
+        count_all_possible_guard_loops(&lab)
     );
 }
 
@@ -215,11 +313,14 @@ fn build_test_lab() -> Lab {
 fn build_test_lab_from_string(test_string: &str) -> Lab {
     let (map, line_length) = map_and_line_length_from_raw_string(test_string);
     let current_pos = find_starting_guard_pos(&map);
-
+    let starting_direction = map[current_pos];
     Lab {
         map,
         line_length,
         guard_position: current_pos,
+        starting_position: current_pos,
+        starting_direction,
+        guard_path: HashSet::new(),
     }
 }
 
