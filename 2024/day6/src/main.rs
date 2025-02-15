@@ -207,16 +207,6 @@ fn calculate_guard_path(lab: &mut Lab) -> bool {
             NextGuardAction::Advance => {
                 let old_position = advance_guard(lab);
                 mark_position_visited(lab, old_position);
-                // Check for loop here. If detected, return true
-                let dir = lab.get_guard_character();
-                if lab.guard_path.contains(&(lab.guard_position, dir)) {
-                    // println!(
-                    //     "Guard already visited position {} with direction {}",
-                    //     lab.guard_position, dir
-                    // );
-                    break true;
-                }
-                lab.guard_path.insert((old_position, dir));
             }
             NextGuardAction::Turn => {
                 rotate_guard(lab);
@@ -224,12 +214,16 @@ fn calculate_guard_path(lab: &mut Lab) -> bool {
             NextGuardAction::ExitLab => {
                 // mark the guard's current position as visited (because they're on the edge, they
                 // will go out of the lab) and then exit the loop
-                lab.guard_path
-                    .insert((lab.guard_position, lab.get_guard_character()));
                 mark_position_visited(lab, lab.guard_position);
                 break false;
             }
         }
+        // Check for loop here. If detected, return true
+        let dir = lab.get_guard_character();
+        if lab.guard_path.contains(&(lab.guard_position, dir)) {
+            break true;
+        }
+        lab.guard_path.insert((lab.guard_position, dir));
     }
 }
 
@@ -244,10 +238,6 @@ fn count_all_possible_guard_loops(lab: &Lab) -> usize {
             let mut lab_copy = lab.clone();
             lab_copy.reset_to_starting_state();
             lab_copy.map[*pos] = '#';
-            // println!(
-            //     "Testing barrier at position {}, reset lab to {:?}",
-            //     pos, lab_copy
-            // );
 
             // Calculate path with the existing function.
             if calculate_guard_path(&mut lab_copy) {
