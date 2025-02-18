@@ -1,3 +1,5 @@
+mod list;
+
 pub mod io_utilities {
     pub fn read_file_to_string(file_name: &String) -> String {
         std::fs::read_to_string(file_name).unwrap()
