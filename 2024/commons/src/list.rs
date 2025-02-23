@@ -1,5 +1,3 @@
-use std::mem::replace;
-
 pub struct List<T> {
     head: Link<T>,
     tail: Link<T>,
@@ -8,18 +6,59 @@ pub struct List<T> {
 
 type Link<T> = Option<Box<Node<T>>>;
 
+pub trait Iterator {
+    type Item;
+    fn next(&mut self) -> Option<Self::Item>;
+}
+
 struct Node<T> {
     elem: T,
     next: Link<T>,
 }
 
+pub struct IntoIter<T>(List<T>);
+pub struct Iter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        // Tuple struct accesses the raw underlying list with .0, then call pop_front
+        self.0.pop_front()
+    }
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+    fn next(&mut self) -> Option<Self::Item> {
+        // Access the next node in the list, and then update the next field to the next node
+        if let Some(node) = self.next {
+            self.next = node.next.as_deref();
+            return Some(&node.elem);
+        }
+        None
+    }
+}
+
 impl<T> List<T> {
+    pub fn into_iter(self) -> IntoIter<T> {
+        IntoIter(self)
+    }
+
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            //next: self.head.as_ref().map::<&Node<T>, _>(|node| node),
+            next: self.head.as_deref(),
+        }
+    }
+
     fn move_all_elements_out(&mut self) {
         // move out of the head first, and then the node will be auto-dropped when the
         // function scope ends
-        let mut dropped_head = replace(&mut self.head, None);
+        let mut dropped_head = self.head.take();
         while let Some(mut dropped_next) = dropped_head {
-            dropped_head = replace(&mut dropped_next.next, None);
+            dropped_head = dropped_next.next.take();
         }
     }
 
@@ -110,6 +149,7 @@ impl<T> Drop for List<T> {
 #[cfg(test)]
 mod test {
 
+    use super::Iterator;
     use super::List;
     #[test]
     fn test_new_basic() {
@@ -188,5 +228,34 @@ mod test {
         assert!(!list.contains(&"fail".to_string()));
         list.push_front("secondary".to_string());
         assert!(list.contains(&"secondary".to_string()));
+    }
+
+    #[test]
+    fn test_into_iter() {
+        // Test IntoIter by creating a new list, appending some elements, and then
+        // asserting that the usage if the IntoIter trait returns all elements in the
+        // correct order, and that they are moved out.
+        let mut list: List<i32> = List::new();
+        list.push_front(1);
+        list.push_front(2);
+        list.push_front(3);
+        let mut iter = list.into_iter();
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iter() {
+        let mut list: List<i32> = List::new();
+        list.push_front(1);
+        list.push_front(2);
+        list.push_front(3);
+        let mut iter = list.iter();
+        assert_eq!(iter.next(), Some(&3));
+        assert_eq!(iter.next(), Some(&2));
+        assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next(), None);
     }
 }
