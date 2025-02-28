@@ -1,5 +1,3 @@
-
-#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -15,6 +13,7 @@ protected:
 
 public:
   LeftAssociativeOperator(int64_t lhs, int64_t rhs) : lhs(lhs), rhs(rhs) {}
+  virtual ~LeftAssociativeOperator() {}
   virtual int64_t operator()() const = 0;
 };
 
@@ -120,6 +119,12 @@ public:
   }
 
 private:
+  const void cleanup_operators(std::vector<LeftAssociativeOperator *> &ops) {
+    for (LeftAssociativeOperator *op : ops) {
+      delete op;
+    }
+  }
+
   const bool is_satisfiable_part_two_helper(int64_t running_value,
                                             std::vector<int64_t>::iterator it) {
     // Check if the equation is satisfiable recursively, by iterating over the
@@ -137,13 +142,20 @@ private:
     std::vector<LeftAssociativeOperator *> operators = {
         new Add(running_value, *it), new Multiply(running_value, *it),
         new Concatenate(running_value, *it)};
+
+    bool satisfiable = false;
     for (LeftAssociativeOperator *op : operators) {
-      std::vector<int64_t>::iterator next_it(it);
-      if (is_satisfiable_part_two_helper((*op)(), ++next_it)) {
-        return true;
+      int64_t next_running_value = (*op)();
+      if (next_running_value <= final_value) {
+        std::vector<int64_t>::iterator next_it(it);
+        if (is_satisfiable_part_two_helper(next_running_value, ++next_it)) {
+          satisfiable = true;
+          break;
+        }
       }
     }
-    return false;
+    cleanup_operators(operators);
+    return satisfiable;
   };
 };
 
@@ -179,16 +191,15 @@ int main(int argc, char *argv[]) {
   int64_t sum_of_satisfied_equations = 0;
   int64_t trip_count = 0;
   for (Equation &equation : equations) {
-    // Print a progress message every 128 equations
-    if ((trip_count > 0) && (trip_count & ((1 << 7) - 1)) == 0) {
-      std::cout << ".";
-    }
     // Check if the equation is satisfied
     // std::cout << "Checking equation: " << equation << std::endl;
     if (equation.is_satisfiable_part_two()) {
       sum_of_satisfied_equations += equation.get_final_value();
     }
-    ++trip_count;
+    // Print a progress message every 128 equations
+    if ((++trip_count & ((1 << 7) - 1)) == 0) {
+      std::cout << "." << std::flush;
+    }
   }
   std::cout << std::endl
             << "Done! Total of satisfiable equations is "
