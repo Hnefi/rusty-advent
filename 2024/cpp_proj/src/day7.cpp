@@ -1,9 +1,53 @@
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
+
+class LeftAssociativeOperator {
+  // A left-associative operator interface class, which is then instantiated by
+  // concrete operators such as Add, Multiply, and Concatenate.
+protected:
+  int64_t lhs;
+  int64_t rhs;
+
+public:
+  LeftAssociativeOperator(int64_t lhs, int64_t rhs) : lhs(lhs), rhs(rhs) {}
+  virtual int64_t operator()() const = 0;
+};
+
+class Add : public LeftAssociativeOperator {
+public:
+  Add(int64_t lhs, int64_t rhs) : LeftAssociativeOperator(lhs, rhs) {}
+  int64_t operator()() const {
+    // std::cout << "Calling add on " << lhs << "+" << rhs << std::endl;
+    return lhs + rhs;
+  }
+};
+
+class Multiply : public LeftAssociativeOperator {
+public:
+  Multiply(int64_t lhs, int64_t rhs) : LeftAssociativeOperator(lhs, rhs) {}
+  int64_t operator()() const {
+    // std::cout << "Calling multiply on " << lhs << "*" << rhs << std::endl;
+    return lhs * rhs;
+  }
+};
+
+class Concatenate : public LeftAssociativeOperator {
+public:
+  Concatenate(int64_t lhs, int64_t rhs) : LeftAssociativeOperator(lhs, rhs) {}
+  int64_t operator()() const {
+    // std::cout << "Calling concatenate on " << lhs << "||" << rhs <<
+    // std::endl;
+    std::string lhs_str = std::to_string(lhs);
+    std::string rhs_str = std::to_string(rhs);
+    std::string concatenated = lhs_str + rhs_str;
+    return std::stoll(concatenated);
+  }
+};
 
 class Equation {
 protected:
@@ -34,7 +78,13 @@ public:
 
   const uint64_t get_final_value() { return final_value; }
 
-  const bool is_satisfiable() {
+  const bool is_satisfiable_part_two() {
+    int64_t running_value = components.at(0);
+    return is_satisfiable_part_two_helper(running_value,
+                                          components.begin() + 1);
+  }
+
+  const bool is_satisfiable_part_one() {
     // Check if the equation is satisfiable recursively.
     // The base case is when the equation has only two components, for which we
     // can simply check if either addition or multiplication of the two
@@ -59,15 +109,42 @@ public:
     if (this->final_value - dropped_component > 0) {
       satisfiable_subtractive =
           Equation(this->final_value - dropped_component, remaining_components)
-              .is_satisfiable();
+              .is_satisfiable_part_one();
     }
     if (this->final_value % dropped_component == 0) {
       satisfiable_division =
           Equation(this->final_value / dropped_component, remaining_components)
-              .is_satisfiable();
+              .is_satisfiable_part_one();
     }
     return satisfiable_subtractive || satisfiable_division;
   }
+
+private:
+  const bool is_satisfiable_part_two_helper(int64_t running_value,
+                                            std::vector<int64_t>::iterator it) {
+    // Check if the equation is satisfiable recursively, by iterating over the
+    // components vector, and building up a "running value" by first applying an
+    // operator to the running value and the current component. The base case is
+    // when there are no more components, in which case we check if the running
+    // value is the same as the final value. Otherwise, we recursively check the
+    // remaining components with the new running value.
+
+    if (it == components.end()) {
+      return running_value == final_value;
+    }
+    // Build operators and recursively check the remaining satisfiability with
+    // each one.
+    std::vector<LeftAssociativeOperator *> operators = {
+        new Add(running_value, *it), new Multiply(running_value, *it),
+        new Concatenate(running_value, *it)};
+    for (LeftAssociativeOperator *op : operators) {
+      std::vector<int64_t>::iterator next_it(it);
+      if (is_satisfiable_part_two_helper((*op)(), ++next_it)) {
+        return true;
+      }
+    }
+    return false;
+  };
 };
 
 std::ostream &operator<<(std::ostream &os, const Equation &eq) {
@@ -108,7 +185,7 @@ int main(int argc, char *argv[]) {
     }
     // Check if the equation is satisfied
     // std::cout << "Checking equation: " << equation << std::endl;
-    if (equation.is_satisfiable()) {
+    if (equation.is_satisfiable_part_two()) {
       sum_of_satisfied_equations += equation.get_final_value();
     }
     ++trip_count;
