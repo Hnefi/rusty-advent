@@ -5,6 +5,15 @@ project(
   LANGUAGES CXX)
 
 set(CMAKE_CXX_FLAGS_DEBUG
-    "${CMAKE_CXX_FLAGS_DEBUG} -O1 -g -fsanitize=address -fno-omit-frame-pointer"
+    "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g -fsanitize=address -fno-omit-frame-pointer"
 )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(xtensor REQUIRED)
+find_package(xtl REQUIRED)
+
 add_executable(day7 src/day7.cpp)
+add_executable(day8 src/day8.cpp)
+
+target_include_directories(day8 PUBLIC ${xtensor_INCLUDE_DIRS})
+target_link_libraries(day8 PUBLIC xtensor)
