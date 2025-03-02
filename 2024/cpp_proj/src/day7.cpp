@@ -75,15 +75,15 @@ public:
 
   friend std::ostream &operator<<(std::ostream &os, const Equation &eq);
 
-  const uint64_t get_final_value() { return final_value; }
+  uint64_t get_final_value() const { return final_value; }
 
-  const bool is_satisfiable_part_two() {
+  bool is_satisfiable_part_two() {
     int64_t running_value = components.at(0);
     return is_satisfiable_part_two_helper(running_value,
                                           components.begin() + 1);
   }
 
-  const bool is_satisfiable_part_one() {
+  bool is_satisfiable_part_one() {
     // Check if the equation is satisfiable recursively.
     // The base case is when the equation has only two components, for which we
     // can simply check if either addition or multiplication of the two
@@ -119,14 +119,14 @@ public:
   }
 
 private:
-  const void cleanup_operators(std::vector<LeftAssociativeOperator *> &ops) {
+  void cleanup_operators(std::vector<LeftAssociativeOperator *> &ops) {
     for (LeftAssociativeOperator *op : ops) {
       delete op;
     }
   }
 
-  const bool is_satisfiable_part_two_helper(int64_t running_value,
-                                            std::vector<int64_t>::iterator it) {
+  bool is_satisfiable_part_two_helper(int64_t running_value,
+                                      std::vector<int64_t>::iterator it) {
     // Check if the equation is satisfiable recursively, by iterating over the
     // components vector, and building up a "running value" by first applying an
     // operator to the running value and the current component. The base case is
