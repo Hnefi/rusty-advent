@@ -12,10 +12,24 @@
 #include <xtensor/xview.hpp>
 
 const char ZERO = '0';
-const char FREE_CHAR = '.';
+const int FREE_INT = -1;
 
-char to_char(unsigned num) { return num + ZERO; }
 unsigned to_num(char c) { return c - ZERO; }
+
+void print_map(xt::xarray<int> arr, size_t line_length = 20) {
+  // Print the disk map as an expanded representation, with each file expanded
+  // into its ID (repeated the number of blocks times), and free space (repeated
+  // as dots)
+  size_t l = line_length;
+  for (auto &c : arr) {
+    std::cout << c << ",";
+    if (l-- == 0) {
+      std::cout << std::endl;
+      l = line_length;
+    }
+  }
+  std::cout << std::endl;
+}
 
 class DiskMap {
   /* The DiskMap class contains a representation of a disk with file space and
@@ -26,8 +40,8 @@ class DiskMap {
    * blocks.
    */
 private:
-  std::vector<char> raw_disk;
-  xt::xarray<char> vec_disk;
+  std::vector<int> raw_disk; // use int because the file IDs will go > 10
+  xt::xarray<int> vec_disk;
 
 public:
   DiskMap(std::ifstream &file) {
@@ -37,9 +51,9 @@ public:
     while (file >> c) {
       while (to_num(c--) > 0) {
         if (is_file) {
-          raw_disk.push_back(to_char(file_id));
+          raw_disk.push_back(file_id);
         } else {
-          raw_disk.push_back('.');
+          raw_disk.push_back(FREE_INT);
         }
       }
       if (is_file) {
@@ -51,7 +65,6 @@ public:
     // Adapt the utility parsed disk var into the vectorized format.
     vec_disk = xt::adapt(raw_disk);
   }
-  friend std::ostream &operator<<(std::ostream &os, const DiskMap &disk);
 
   void compact() {
     // Compact the disk by doing the following:
@@ -71,60 +84,56 @@ public:
     xt::xarray<size_t> index_swaps = xt::arange<size_t>(0, vec_disk.size(), 1);
     size_t free_idx = 0, file_idx = vec_disk.size() - 1;
     while (free_idx < file_idx) {
-      // std::cout << *this << "free_idx: " << free_idx
-      //           << ", file_idx: " << file_idx << std::endl;
-      if (vec_disk[free_idx] != FREE_CHAR) {
+      // std::cout << "free_idx: " << free_idx << ", file_idx: " << file_idx
+      //           << std::endl;
+      if (vec_disk[free_idx] != FREE_INT) {
         // std::cout << "Found file block: " << vec_disk[free_idx] << std::endl;
-        index_swaps[free_idx++] = free_idx;
+        index_swaps[free_idx] = free_idx;
+        free_idx += 1;
       } else {
         // std::cout << "Found free block to compact at index " << free_idx
         //           << std::endl;
-        while (vec_disk[file_idx] == FREE_CHAR) {
-          // std::cout << "Advancing file_block pointer looking for a file block
-          // "
+        while (vec_disk[file_idx] == FREE_INT && (free_idx < file_idx)) {
+          // std::cout << "Advancing file_block pointer looking for a file
+          // block"
           //              "to compact... file_idx = "
-          // << file_idx << std::endl;
-          index_swaps[file_idx--] = file_idx;
+          //           << file_idx << std::endl;
+          index_swaps[file_idx] = file_idx;
+          file_idx -= 1;
         }
-        // std::cout << "Swapping indices " << free_idx << " and " << file_idx
-        //           << std::endl;
+        if (free_idx >= file_idx)
+          break;
         // Getting here means that file_idx points to a non-free space block
         // that we can swap into the place pointed to by 'free_idx'.
+        // std::cout << "Swapping " << vec_disk[free_idx] << " (@index "
+        //           << free_idx << ") and " << vec_disk[file_idx] << "(@index "
+        //           << file_idx << ")" << std::endl;
         index_swaps[free_idx] = file_idx;
         index_swaps[file_idx] = free_idx;
-        free_idx++;
-        file_idx--;
+        free_idx += 1;
+        file_idx -= 1;
         // std::cout << "Index swaps xarray: " << index_swaps << std::endl;
       }
     }
     auto compacted = xt::index_view(vec_disk, index_swaps);
-    // std::cout << "Final compacted view: " << compacted << std::endl;
     // Calculate the disk checksum.
     // xt::xarray<size_t> indices = xt::arange<size_t>(0, vec_disk.size(), 1);
     // auto product = (compacted - ZERO);
-    // std::cout << "Final product: " << product << std::endl;
+    // std::cout << "Initial disk map" << std::endl;
+    // print_map(vec_disk);
+    // std::cout << "Final product: " << std::endl;
+    // print_map(compacted);
     unsigned long idx = 0;
     unsigned long long checksum = 0;
     for (auto &c : compacted) {
-      if (c != FREE_CHAR) {
-        checksum += (to_num(c) * idx++);
+      if (c != FREE_INT) {
+        checksum += (c * idx);
       }
+      idx++;
     }
     std::cout << "Final checksum: " << checksum << std::endl;
   }
 };
-
-std::ostream &operator<<(std::ostream &os, const DiskMap &disk) {
-  // Print the disk map as an expanded representation, with each file expanded
-  // into its ID (repeated the number of blocks times), and free space (repeated
-  // as dots)
-  os << "Disk Map: ";
-  for (auto &c : disk.vec_disk) {
-    os << c;
-  }
-  os << std::endl;
-  return os;
-}
 
 int main(int argc, char *argv[]) {
   if (argc < 2) {
