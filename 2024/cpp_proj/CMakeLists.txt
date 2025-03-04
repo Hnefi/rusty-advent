@@ -19,3 +19,5 @@ add_executable(day9 src/day9.cpp)
 
 target_include_directories(day8 PUBLIC ${xtensor_INCLUDE_DIRS})
 target_link_libraries(day8 PUBLIC xtensor)
+target_include_directories(day9 PUBLIC ${xtensor_INCLUDE_DIRS})
+target_link_libraries(day9 PUBLIC xtensor)
