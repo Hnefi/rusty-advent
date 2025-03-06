@@ -171,31 +171,32 @@ public:
         FreeSpace dest = compact_options.front();
         // std::cout << "Picked free space block at index: " << dest.get_index()
         //           << ", with size " << dest.get_size() << std::endl;
+        if (dest.get_index() < it->get_index()) {
+          // Only compact this file if it would move to the left.
+          // Starting from the beginning of the free block in 'dest' and the
+          // file block in (*it), set the list of index swaps accordingly.
+          assert(it->get_size() <= dest.get_size());
+          for (size_t s = 0; s < it->get_size(); s++) {
+            index_swaps[dest.get_index() + s] = it->get_index() + s;
+            index_swaps[it->get_index() + s] = dest.get_index() + s;
+          }
+          size_t blocks_remaining = dest.get_size() - it->get_size();
 
-        // Starting from the beginning of the free block in 'dest' and the file
-        // block in (*it), set the list of index swaps accordingly.
-        assert(it->get_size() <= dest.get_size());
-        for (size_t s = 0; s < it->get_size(); s++) {
-          index_swaps[dest.get_index() + s] = it->get_index() + s;
-          index_swaps[it->get_index() + s] = dest.get_index() + s;
+          // Remove the old free space from its respective heap, and then
+          // create a new free space with the number of blocks remaining.
+          free_heaps[dest.get_size()]
+              .pop(); // guaranteed to remove the same
+                      // element as above when we did top()
+          if (blocks_remaining) {
+            size_t starting_index = dest.get_index() + it->get_size();
+            FreeSpace remaining_space(starting_index, blocks_remaining);
+            // std::cout << "Pushing a new free space block starting from index
+            // "
+            //           << starting_index << " with size " << blocks_remaining
+            //           << std::endl;
+            free_heaps[blocks_remaining].push(remaining_space);
+          }
         }
-        size_t blocks_remaining = dest.get_size() - it->get_size();
-
-        // Remove the old free space from its respective heap, and then
-        // create a new free space with the number of blocks remaining.
-        free_heaps[dest.get_size()].pop(); // guaranteed to remove the same
-                                           // element as above when we did top()
-        if (blocks_remaining) {
-          size_t starting_index = dest.get_index() + it->get_size();
-          FreeSpace remaining_space(starting_index, blocks_remaining);
-          // std::cout << "Pushing a new free space block starting from index "
-          //           << starting_index << " with size " << blocks_remaining
-          //           << std::endl;
-          free_heaps[blocks_remaining].push(remaining_space);
-        }
-      } else {
-        // std::cout << "No free space remaining, can't compact file "
-        //           << it->get_file_id() << std::endl;
       }
     }
 
