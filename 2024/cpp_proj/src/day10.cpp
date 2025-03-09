@@ -1,8 +1,9 @@
 #include <deque>
 #include <fstream>
 #include <iostream>
-#include <set>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 const char ZERO = '0';
@@ -12,8 +13,10 @@ class HikingMapGraph {
   public:
     size_t location;
     unsigned elevation; // a number from 0-9 signifying elevation.
-    std::set<size_t> summits_reachable; // the locations of all reachable
-                                        // summits from this trail
+    std::map<size_t, size_t>
+        summits_reachable; // the locations of all reachable
+                           // summits from this trail, key = location, and value
+                           // = the number of paths to that summit
 
     Trail(size_t loc, char anElevation)
         : location(loc), elevation((size_t)anElevation), summits_reachable() {}
@@ -91,7 +94,14 @@ private:
                       << " from trail head at location: "
                       << trail_head.get_location() << std::endl;
             */
-            trail_head.summits_reachable.insert(trail->get_location());
+            auto it = trail_head.summits_reachable.find(trail->get_location());
+            if (it != trail_head.summits_reachable.end()) {
+              // increment the number of ways to get there
+              it->second += 1;
+            } else {
+              trail_head.summits_reachable.insert(
+                  std::make_pair(trail->get_location(), 1));
+            }
           } else {
             // Only traverse the next location if it is not a summit.
             trail_queue.push_front(trail);
@@ -119,6 +129,18 @@ public:
     for (const Trail &trail : trails) {
       if (trail.is_trail_head()) {
         sum += trail.summits_reachable.size();
+      }
+    }
+    return sum;
+  }
+
+  unsigned sum_ratings() const {
+    unsigned sum = 0;
+    for (const Trail &trail : trails) {
+      if (trail.is_trail_head()) {
+        for (auto &summit : trail.summits_reachable) {
+          sum += summit.second;
+        }
       }
     }
     return sum;
@@ -154,5 +176,7 @@ int main(int argc, char *argv[]) {
   HikingMapGraph map(in);
   map.find_reachable_summits();
   std::cout << "Sum of all reachable summits is: " << map.sum_scores()
+            << std::endl;
+  std::cout << "Part2: Rating of all reachable summits is " << map.sum_ratings()
             << std::endl;
 }
