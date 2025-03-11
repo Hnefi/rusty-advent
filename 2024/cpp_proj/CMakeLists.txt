@@ -17,6 +17,7 @@ add_executable(day7 src/day7.cpp)
 add_executable(day8 src/day8.cpp)
 add_executable(day9 src/day9.cpp)
 add_executable(day10 src/day10.cpp)
+add_executable(day11 src/day11.cpp)
 
 target_include_directories(day8 PUBLIC ${xtensor_INCLUDE_DIRS})
 target_link_libraries(day8 PUBLIC xtensor)
