@@ -1,9 +1,15 @@
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <utility>
 
 std::list<uint64_t> build_initial_list(std::string input) {
   std::list<uint64_t> ret;
@@ -34,9 +40,105 @@ void print_stones(std::list<uint64_t> &stones) {
   std::cout << "]" << std::endl;
 }
 
-void apply_blinks(std::list<uint64_t> &stones, unsigned num_blinks) {
+typedef std::tuple<uint64_t, unsigned> _map_key_t;
+
+struct CustomTupleHash {
+  std::size_t operator()(const _map_key_t &k) const noexcept {
+    std::size_t hash = std::hash<uint64_t>{}(std::get<0>(k));
+    // this xor and shift are randomly chosen
+    hash ^= std::hash<uint64_t>{}(std::get<1>(k) << 2);
+    return hash;
+  }
+};
+
+// A memoization map with the following structure:
+// - Keys: a tuple of (initial value, num_blinks)
+// - Values: The number of stones after applying all the blinks.
+static uint64_t lookups = 0;
+static uint64_t hits = 0;
+typedef std::unordered_map<_map_key_t, uint64_t, CustomTupleHash> _memo_map_t;
+
+std::size_t number_of_stones(uint64_t initial_number, unsigned num_blinks,
+                             _memo_map_t &memo) {
+  // Calculate the number of stones that will be generated after 'num_blinks'
+  // iterations, starting from a single initial_number. Uses memoization to
+  // store repeated results.
+  if (num_blinks == 0)
+    return 1;
+
+  // Check for memoization.
+  lookups += 1;
+  const auto &it = memo.find(std::make_tuple(initial_number, num_blinks));
+  if (it != memo.end()) {
+    hits += 1;
+    // std::cout << "Hit memoization for (" << initial_number << "," <<
+    // num_blinks
+    //           << "), returning " << it->second << std::endl;
+    return it->second;
+  }
+
+  // std::cout << "Missed memoization for (" << initial_number << "," <<
+  // num_blinks
+  //           << "), calculating...." << std::endl;
+  // We missed the memoization map, so go and apply blinks-1 to the stones that
+  // will result from following the rules.
+  // Rule 1: A zero stone becomes 1.
+  uint64_t val;
+  if (initial_number == 0) {
+    // std::cout
+    //     << "Initial number was zero, recursing 1 level deeper with value 1."
+    //     << std::endl;
+    val = number_of_stones(1, num_blinks - 1, memo);
+    memo.insert(
+        std::make_pair(std::make_tuple(initial_number, num_blinks - 1), val));
+    return val;
+  }
+  // Rule 2: A stone with an even number of digits becomes 2 stones, each
+  // with half the digits from the original.
+  std::string s = std::to_string(initial_number);
+  if ((s.length() & 0x1) == 0) {
+    size_t midpoint = s.length() / 2;
+    std::string left_half = s.substr(0, midpoint);
+    std::string right_half = s.substr(midpoint); // by default goes to end
+    uint64_t left_num = std::stoull(left_half);
+    uint64_t right_num = std::stoull(right_half);
+    // std::cout << "EVEN DIGITS. Recursing 1 level deeper with value "
+    //           << left_half << std::endl;
+    val = number_of_stones(left_num, num_blinks - 1, memo);
+    memo.insert(std::make_pair(std::make_tuple(left_num, num_blinks - 1), val));
+    // std::cout << "EVEN DIGITS. Recursing 1 level deeper with value "
+    //           << right_half << std::endl;
+    uint64_t tmp = number_of_stones(right_num, num_blinks - 1, memo);
+    memo.insert(
+        std::make_pair(std::make_tuple(right_num, num_blinks - 1), tmp));
+    return val + tmp;
+  }
+  // Rule 3: Multiply the value by 2024;
+  // std::cout << "Recursing 1 level deeper with value " << initial_number *
+  // 2024
+  //           << std::endl;
+  val = number_of_stones(initial_number * 2024, num_blinks - 1, memo);
+  memo.insert(std::make_pair(
+      std::make_tuple(initial_number * 2024, num_blinks - 1), val));
+  return val;
+}
+
+uint64_t apply_blinks_part_two(std::list<uint64_t> &stones,
+                               unsigned num_blinks) {
+  uint64_t result = 0;
+  _memo_map_t memo;
+  for (std::list<uint64_t>::iterator it = stones.begin(); it != stones.end();
+       it++) {
+    // Apply all the blinks to each stone individually and sum up the values,
+    // since each blink does not swap the order of any stones.
+    result += number_of_stones(*it, num_blinks, memo);
+  }
+  return result;
+}
+
+void apply_blinks_part_one(std::list<uint64_t> &stones, unsigned num_blinks) {
   for (size_t i = 0; i < num_blinks; i++) {
-    std::cout << "Applying rules after blink number: " << i + 1 << std::endl;
+    // std::cout << "Applying rules after blink number: " << i + 1 << std::endl;
     // Iterate over the stone list and apply the rules in order.
     for (std::list<uint64_t>::iterator it = stones.begin(); it != stones.end();
          it++) {
@@ -88,7 +190,11 @@ int main(int argc, char *argv[]) {
   }
 
   std::list<uint64_t> stones = build_initial_list(line);
-  apply_blinks(stones, std::stoull(argv[2]));
-  std::cout << "Final stone count: " << stones.size() << std::endl;
+  uint64_t blinks = std::stoull(argv[2]);
+  // uint64_t count = apply_blinks_part_one(stones, blinks);
+  uint64_t count = apply_blinks_part_two(stones, blinks);
+  std::cout << "Final stone count: " << count << std::endl;
+  std::cout << "Memoization hit rate: " << (float)hits / (float)lookups
+            << std::endl;
   return 0;
 }
