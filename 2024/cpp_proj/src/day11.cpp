@@ -71,26 +71,16 @@ std::size_t number_of_stones(uint64_t initial_number, unsigned num_blinks,
   const auto &it = memo.find(std::make_tuple(initial_number, num_blinks));
   if (it != memo.end()) {
     hits += 1;
-    // std::cout << "Hit memoization for (" << initial_number << "," <<
-    // num_blinks
-    //           << "), returning " << it->second << std::endl;
     return it->second;
   }
 
-  // std::cout << "Missed memoization for (" << initial_number << "," <<
-  // num_blinks
-  //           << "), calculating...." << std::endl;
   // We missed the memoization map, so go and apply blinks-1 to the stones that
   // will result from following the rules.
   // Rule 1: A zero stone becomes 1.
   uint64_t val;
   if (initial_number == 0) {
-    // std::cout
-    //     << "Initial number was zero, recursing 1 level deeper with value 1."
-    //     << std::endl;
     val = number_of_stones(1, num_blinks - 1, memo);
-    memo.insert(
-        std::make_pair(std::make_tuple(initial_number, num_blinks - 1), val));
+    memo.insert(std::make_pair(std::make_tuple(1, num_blinks - 1), val));
     return val;
   }
   // Rule 2: A stone with an even number of digits becomes 2 stones, each
@@ -102,21 +92,14 @@ std::size_t number_of_stones(uint64_t initial_number, unsigned num_blinks,
     std::string right_half = s.substr(midpoint); // by default goes to end
     uint64_t left_num = std::stoull(left_half);
     uint64_t right_num = std::stoull(right_half);
-    // std::cout << "EVEN DIGITS. Recursing 1 level deeper with value "
-    //           << left_half << std::endl;
     val = number_of_stones(left_num, num_blinks - 1, memo);
     memo.insert(std::make_pair(std::make_tuple(left_num, num_blinks - 1), val));
-    // std::cout << "EVEN DIGITS. Recursing 1 level deeper with value "
-    //           << right_half << std::endl;
     uint64_t tmp = number_of_stones(right_num, num_blinks - 1, memo);
     memo.insert(
         std::make_pair(std::make_tuple(right_num, num_blinks - 1), tmp));
     return val + tmp;
   }
   // Rule 3: Multiply the value by 2024;
-  // std::cout << "Recursing 1 level deeper with value " << initial_number *
-  // 2024
-  //           << std::endl;
   val = number_of_stones(initial_number * 2024, num_blinks - 1, memo);
   memo.insert(std::make_pair(
       std::make_tuple(initial_number * 2024, num_blinks - 1), val));
@@ -136,7 +119,8 @@ uint64_t apply_blinks_part_two(std::list<uint64_t> &stones,
   return result;
 }
 
-void apply_blinks_part_one(std::list<uint64_t> &stones, unsigned num_blinks) {
+std::size_t apply_blinks_part_one(std::list<uint64_t> &stones,
+                                  unsigned num_blinks) {
   for (size_t i = 0; i < num_blinks; i++) {
     // std::cout << "Applying rules after blink number: " << i + 1 << std::endl;
     // Iterate over the stone list and apply the rules in order.
@@ -168,6 +152,7 @@ void apply_blinks_part_one(std::list<uint64_t> &stones, unsigned num_blinks) {
     }
     // print_stones(stones);
   }
+  return stones.size();
 }
 
 int main(int argc, char *argv[]) {
