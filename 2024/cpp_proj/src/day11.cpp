@@ -5,8 +5,6 @@
 #include <list>
 #include <string>
 
-const size_t NUM_BLINKS = 75;
-
 std::list<uint64_t> build_initial_list(std::string input) {
   std::list<uint64_t> ret;
   size_t idx;
@@ -71,8 +69,10 @@ void apply_blinks(std::list<uint64_t> &stones, unsigned num_blinks) {
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <input_file>" << std::endl;
+  if (argc != 3) {
+    std::cerr << "Usage: " << argv[0] << " <input_file> <num_blinks>"
+              << std::endl;
+    return -1;
   }
 
   std::ifstream in;
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   }
 
   std::list<uint64_t> stones = build_initial_list(line);
-  apply_blinks(stones, NUM_BLINKS);
+  apply_blinks(stones, std::stoull(argv[2]));
   std::cout << "Final stone count: " << stones.size() << std::endl;
   return 0;
 }
